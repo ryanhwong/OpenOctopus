@@ -14,7 +14,7 @@
 | 决策点 | 结论 | 理由 |
 |---|---|---|
 | 定位 | 自用单账号工具 | 验证全链路价值优先；架构不背多租户复杂度 |
-| 货源 | 1688 优先 | 1688 有官方开放平台 API；拼多多反爬成本高，留到后续 |
+| 货源 | 1688 优先（Playwright 爬取为主） | 官方开放平台需企业认证+付费订购，自用不划算；浏览器自动化+登录态复用即可覆盖自用量级 |
 | 自动化程度 | 自动生成 + 人审卡点 | 图片翻译无 100% 可靠全自动方案，人审是质量兜底 |
 | 技术栈 | Python 全栈 | 爬虫/图像/LLM 生态最成熟 |
 | 技术路线 | 混合渐进（方案 C） | 官方 API 为主爬虫兜底；图片翻译先免费 VLM 管线，付费服务做 fallback |
@@ -41,9 +41,10 @@
 每个模块单一职责，通过 Protocol 接口解耦，可独立测试替换。
 
 ### 4.1 `collector` — 采集
-- `SourceAdapter` Protocol：`async fetch(url) -> RawProduct`（归一化结构：标题、卖点、描述、SKU 规格表、价格、主图列表、详情图列表、供应商信息）
-- 实现：`A1688OpenApiAdapter`（open.1688.com 商品详情 API，主路径）；`A1688PlaywrightAdapter`(浏览器抓取兜底)
+- `SourceAdapter` Protocol：`async fetch(url) -> RawProduct`（归一化结构：标题、卖点、描述、SKU 规格表、价格、主图列表、详情图列表）
+- 实现：`A1688PlaywrightAdapter`（Playwright 驱动真实浏览器，扫码登录一次后 cookies 持久化到 storage_state 复用；主路径）；`HtmlFileAdapter`（解析手动保存的商品页 HTML 文件，零反爬风险兜底）
 - 原始返回值整体存档至 `source_snapshots`，便于重放与排查
+- 反爬对策：低频访问 + 拟人节奏；遇滑块验证时暂停并提示人工处理后重试
 
 ### 4.2 `content` — 文案翻译
 - `ContentTranslator` Protocol，LLM 实现
@@ -86,7 +87,7 @@
 
 ## 6. 数据模型（SQLite）
 
-- `products`：id、source_url、source_platform、status（状态机见 §7）、ozon_product_id、时间戳
+- `products`：id、source_url、source_platform、status（状态机见 §7）、ozon_product_id、price_rub（上架价，人审页可改，默认 = price_cny × `OO_PRICE_CNY_TO_RUB`）、时间戳
 - `source_snapshots`：product_id、raw_json、fetched_at（采集原始留档）
 - `translations`：product_id、field（title/description/bullet/attribute）、zh、ru、model、edited_by_human
 - `images`：product_id、kind(main/detail)、source_url、translated_url(R2)、status(pending/translating/uploaded/failed/needs_human)、meta_json(bbox 等)
@@ -121,14 +122,14 @@ failed 一键重试回到对应阶段（各 stage 幂等）
 
 ## 10. 配置与密钥（.env，已 gitignore）
 
-`OZON_CLIENT_ID`、`OZON_API_KEY`、`OPENROUTER_API_KEY`、`R2_*`（bucket/keys/公开域名）、`IMAGE_TRANSLATE_MODEL`、`CONTENT_TRANSLATE_MODEL`、`LIVE_MODE`
+`OZON_CLIENT_ID`、`OZON_API_KEY`、`OPENROUTER_API_KEY`、`R2_*`（bucket/keys/公开域名）、`IMAGE_TRANSLATE_MODEL`、`CONTENT_TRANSLATE_MODEL`、`PRICE_CNY_TO_RUB`（汇率倍率，默认 12）、`FONT_PATH`、`LIVE_MODE`
 
 ## 11. 用户前置准备清单
 
-1. seller.ozon.ru 后台 Settings → API keys 生成 `Client-Id` / `Api-Key`
-2. open.1688.com 注册开发者并申请商品详情 API 权限（有审核周期，尽早提交）
-3. Cloudflare R2 建 bucket + 绑定公开访问域名
-4. （可选降级用）阿里云开通电商图片翻译
+1. ✅ seller.ozon.ru 后台生成 `Client-Id` / `Api-Key`（已提供）
+2. Cloudflare R2 建 bucket + 绑定公开访问域名
+3. 首次使用运行 `uv run python -m openoctopus login` 扫码登录 1688，cookies 持久化本地
+4. （可选，暂缓）阿里云电商图片翻译——VLM 管线为主时无需开通
 
 ## 12. 后续演进方向（不在本期）
 
