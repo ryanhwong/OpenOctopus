@@ -1,0 +1,16 @@
+# AGENTS.md
+
+## Git push（重要，勿用 HTTPS）
+- 本机推送走 SSH 443 通道，origin 已配置为：
+  ```bash
+  ssh://git@ssh.github.com:443/ryanhwong/OpenOctopus.git
+  ```
+- SSH key `~/.ssh/id_rsa` 已注册在 GitHub ryanhwong 账号，直接 push 即可。
+- 若新仓库仍是 HTTPS remote，先切换：
+  ```bash
+  git remote set-url origin "ssh://git@ssh.github.com:443/ryanhwong/<仓库名>.git"
+  ```
+- 首次连接报 host key 确认时：加 `-o StrictHostKeyChecking=accept-new`，或先验证 `ssh -p 443 -T git@ssh.github.com`（输出 `Hi ryanhwong!` 即通）。
+
+## Repo 状态
+- 目前是空仓库（尚无代码/工具链）。脚手架落地后，在此补充真实的 build / lint / test 命令与项目结构说明。
