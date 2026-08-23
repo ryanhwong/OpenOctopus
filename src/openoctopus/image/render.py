@@ -32,12 +32,26 @@ def _fit_font(
     while lo <= hi:
         mid = (lo + hi) // 2
         f = ImageFont.truetype(font_path, mid)
-        if draw.textlength(text, font=f) <= box_w * 1.05:
+        if draw.textlength(text, font=f) <= box_w and sum(f.getmetrics()) <= box_h:
             best = f
             lo = mid + 1
         else:
             hi = mid - 1
     return best or ImageFont.truetype(font_path, 8)
+
+
+def _render_box_text(
+    b: TextBox, fill: tuple[int, int, int], font_path: str
+) -> Image.Image:
+    layer = Image.new("RGB", (b.w, b.h))
+    d = ImageDraw.Draw(layer)
+    f = _fit_font(d, b.ru_text, b.w, b.h, font_path)
+    tw = int(d.textlength(b.ru_text, font=f))
+    asc, desc = f.getmetrics()
+    x = max(0, (b.w - tw) // 2)
+    y = max(0, (b.h - (asc + desc)) // 2)
+    d.text((x, y), b.ru_text, font=f, fill=fill)
+    return layer
 
 
 def _draw_translations(
@@ -47,16 +61,10 @@ def _draw_translations(
     colors: dict[int, tuple[int, int, int]],
 ) -> Image.Image:
     out = img.convert("RGB").copy()
-    d = ImageDraw.Draw(out)
     for i, b in enumerate(boxes):
         if not b.ru_text:
             continue
-        f = _fit_font(d, b.ru_text, b.w, b.h, font_path)
-        tw = d.textlength(b.ru_text, font=f)
-        x = b.x + max(0, (b.w - int(tw)) // 2)
-        asc, desc = f.getmetrics()
-        y = b.y + max(0, (b.h - (asc + desc)) // 2)
-        d.text((x, y), b.ru_text, font=f, fill=colors[i])
+        out.paste(_render_box_text(b, colors[i], font_path), (b.x, b.y))
     return out
 
 
