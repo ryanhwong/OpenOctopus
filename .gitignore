@@ -24,3 +24,6 @@ coverage/
 # Python
 __pycache__/
 .venv/
+
+# SDD scratch
+.superpowers/
