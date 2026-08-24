@@ -32,6 +32,16 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         w = getattr(app.state, "worker", None)
         if w:
             w.cancel()
+        for client in (
+            getattr(getattr(ctx, "ozon", None), "http", None),
+            getattr(getattr(ctx, "image_translator", None), "http", None),
+            getattr(getattr(ctx, "content_translator", None), "client", None),
+        ):
+            if client is not None:
+                try:
+                    await client.aclose()
+                except Exception:  # noqa: BLE001, S110
+                    pass
 
     @app.get("/", response_class=HTMLResponse)
     def kanban(request: Request):
@@ -103,6 +113,13 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
     @app.post("/products/{pid}/approve")
     def approve(pid: int):
         conn = get_conn(ctx.db_path)
+        row = conn.execute("SELECT status FROM products WHERE id=?", (pid,)).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+        if row["status"] not in ("review", "collected", "generating"):
+            return HTMLResponse(
+                "Approve only allowed in review/collected/generating status",
+                status_code=400)
         conn.execute("UPDATE products SET status='publishing' WHERE id=?", (pid,))
         conn.commit()
         enqueue(conn, "publish", {"product_id": pid})
@@ -111,6 +128,13 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
     @app.post("/products/{pid}/regenerate")
     def regenerate(pid: int):
         conn = get_conn(ctx.db_path)
+        row = conn.execute("SELECT status FROM products WHERE id=?", (pid,)).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+        if row["status"] not in ("review", "collected", "generating"):
+            return HTMLResponse(
+                "Regenerate only allowed in review/collected/generating status",
+                status_code=400)
         conn.execute("UPDATE products SET status='generating' WHERE id=?", (pid,))
         conn.commit()
         enqueue(conn, "generate", {"product_id": pid})

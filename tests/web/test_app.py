@@ -97,3 +97,26 @@ def test_review_missing_product_returns_404(tmp_path):
         "ozon_category_id": "42", "attributes_json": "{}",
     }, follow_redirects=False)
     assert r.status_code == 400
+
+
+def _insert_product(db_path, status: str) -> None:
+    conn = get_conn(db_path)
+    conn.execute(
+        "INSERT INTO products (source_url, status) VALUES (?, ?)",
+        ("https://detail.1688.com/offer/1.html", status),
+    )
+    conn.commit()
+
+
+def test_approve_wrong_status_returns_400(tmp_path):
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "new")
+    r = c.post("/products/1/approve", follow_redirects=False)
+    assert r.status_code == 400
+
+
+def test_regenerate_wrong_status_returns_400(tmp_path):
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "new")
+    r = c.post("/products/1/regenerate", follow_redirects=False)
+    assert r.status_code == 400

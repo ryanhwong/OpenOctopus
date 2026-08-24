@@ -1,6 +1,8 @@
+import os
 from io import BytesIO
 
 import numpy as np
+import pytest
 from PIL import Image
 
 from openoctopus.image.render import (
@@ -11,6 +13,12 @@ from openoctopus.image.render import (
 from openoctopus.models import TextBox
 
 FONT_PATH = "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"
+
+if not os.path.exists(FONT_PATH):
+    pytest.skip(
+        f"Font {FONT_PATH} not available on this platform",
+        allow_module_level=True,
+    )
 
 
 def make_img() -> Image.Image:
