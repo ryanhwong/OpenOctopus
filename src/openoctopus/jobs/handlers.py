@@ -99,7 +99,7 @@ async def handle_publish(ctx, payload: dict) -> None:
         category_id=int(m["ozon_category_id"]),
         attributes=json.loads(m["attributes_json"]), image_urls=main_urls)
 
-    result = await ctx.ozon.import_products(items)
+    result = await ctx.ozon.import_products(items["items"])
     task_id = result.get("result", {}).get("task_id")
     conn.execute("INSERT INTO listings(product_id, import_task_id) VALUES(?,?)", (pid, str(task_id)))
     conn.commit()
@@ -107,7 +107,7 @@ async def handle_publish(ctx, payload: dict) -> None:
     status_text, err, ozon_pid = "", "", ""
     for _ in range(12):
         await asyncio.sleep(5)
-        info = await ctx.ozon.import_task_info(task_id)
+        info = await ctx.ozon.import_task_info(int(task_id))
         rows = info.get("result", {}).get("items", [])
         if rows:
             status_text = str(rows[0].get("status", ""))
