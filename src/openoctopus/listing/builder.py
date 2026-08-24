@@ -23,7 +23,7 @@ def build_import_payload(
                         "id": int(a["id"]),
                         "values": (
                             [{"dictionary_value_id": a["dictionary_value_id"]}]
-                            if a.get("dictionary_value_id")
+                            if a.get("dictionary_value_id") is not None
                             else [{"value": a["value"]}]
                         ),
                     }

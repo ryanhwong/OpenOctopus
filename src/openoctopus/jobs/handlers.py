@@ -2,6 +2,7 @@ import asyncio
 import json
 
 from openoctopus.category.suggest import fill_attributes, pick_category
+from openoctopus.category.sync import sync_categories
 from openoctopus.jobs.queue import enqueue
 from openoctopus.listing.builder import build_import_payload
 from openoctopus.models import RawProduct
@@ -58,6 +59,11 @@ async def handle_generate(ctx, payload: dict) -> None:
         url = await ctx.image_translator.translate(row["source_url"], key_hint)
         conn.execute("UPDATE images SET translated_url=?, status='uploaded' WHERE id=?",
                      (url, row["id"]))
+
+    if s.live_mode and conn.execute(
+            "SELECT count(*) FROM ozon_categories").fetchone()[0] == 0:
+        tree = await ctx.ozon.category_tree()
+        sync_categories(ctx.ozon, conn, tree)
 
     candidates = [{"id": r["id"], "title": r["title"]}
                   for r in conn.execute("SELECT id, title FROM ozon_categories LIMIT 300")]

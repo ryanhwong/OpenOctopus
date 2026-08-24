@@ -23,20 +23,28 @@ class A1688PlaywrightAdapter:
         return parse_product_html(html, url)
 
     def _fetch_sync(self, url: str) -> str:
+        from bs4 import BeautifulSoup
         from playwright.sync_api import sync_playwright
 
         s = get_settings()
         state = Path(s.playwright_storage_state)
+        state_existed = state.exists()
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             ctx = browser.new_context(
-                storage_state=str(state) if state.exists() else None,
+                storage_state=str(state) if state_existed else None,
                 user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
             )
             page = ctx.new_page()
             page.goto(url, wait_until="domcontentloaded", timeout=60_000)
             page.wait_for_timeout(3_000)
             html = page.content()
-            ctx.storage_state(path=str(state))
+
+            soup = BeautifulSoup(html, "html.parser")
+            og = soup.select_one('meta[property="og:title"]')
+            title_text = (og.get("content") if og else "").strip()
+            is_login_wall = "登录" in title_text or "login" in title_text.lower()
+            if state_existed and og is not None and not is_login_wall:
+                ctx.storage_state(path=str(state))
             browser.close()
         return html

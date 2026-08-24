@@ -21,7 +21,10 @@ class OzonClient:
     async def category_attributes(self, category_id: int) -> list[dict]:
         out = await self._post(PATHS["category_attributes"], {"description_category_id": category_id,
                                                               "language": "RU"})
-        return out.get("result", [])
+        res = out.get("result", [])
+        if isinstance(res, dict):
+            return res.get("attributes", [])
+        return res
 
     async def import_products(self, items: list[dict]) -> dict:
         return await self._post(PATHS["import"], {"items": items})
