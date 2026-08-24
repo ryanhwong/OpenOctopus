@@ -1,7 +1,7 @@
 import json as _json
 from pathlib import Path
 
-from fastapi import FastAPI, Form, Request, UploadFile
+from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -58,7 +58,10 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
     @app.get("/products/{pid}", response_class=HTMLResponse)
     def review(request: Request, pid: int):
         conn = get_conn(ctx.db_path)
-        p = dict(conn.execute("SELECT * FROM products WHERE id=?", (pid,)).fetchone())
+        row = conn.execute("SELECT * FROM products WHERE id=?", (pid,)).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+        p = dict(row)
         t = {r["field"]: dict(r) for r in conn.execute(
             "SELECT field, zh, ru FROM translations WHERE product_id=?", (pid,))}
         images = conn.execute("SELECT * FROM images WHERE product_id=? ORDER BY kind, id",
@@ -71,16 +74,24 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
 
     @app.post("/products/{pid}/edit")
     def edit(pid: int, title_ru: str = Form(...), description_ru: str = Form(...),
-             price_rub: float = Form(...), ozon_category_id: str = Form(...),
+             price_rub: str = Form(""), ozon_category_id: str = Form(...),
              attributes_json: str = Form("{}")):
         try:
             attrs = _json.loads(attributes_json)
         except _json.JSONDecodeError:
             return HTMLResponse("Invalid attributes_json", status_code=400)
+        if price_rub != "":
+            try:
+                price_rub_val = float(price_rub)
+            except ValueError:
+                return HTMLResponse("Invalid price_rub", status_code=400)
+        else:
+            price_rub_val = None
         conn = get_conn(ctx.db_path)
         upsert_translation(conn, pid, "title", "", title_ru)
         upsert_translation(conn, pid, "description", "", description_ru)
-        conn.execute("UPDATE products SET price_rub=? WHERE id=?", (price_rub, pid))
+        if price_rub_val is not None:
+            conn.execute("UPDATE products SET price_rub=? WHERE id=?", (price_rub_val, pid))
         conn.execute(
             "INSERT INTO category_mappings(product_id, ozon_category_id, attributes_json, human_confirmed)"
             " VALUES(?,?,?,1) ON CONFLICT(product_id) DO UPDATE SET "
