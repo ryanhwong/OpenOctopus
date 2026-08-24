@@ -33,5 +33,5 @@ async def test_pick_and_fill():
                   json.dumps({"attributes": [{"id": 85, "value": "Термос"}]})])
     cat_id = await pick_category(Wrap(llm), "m", [], None, None)
     assert cat_id == "42"
-    attrs = await fill_attributes(Wrap(llm), "m", None, 42, None, None)
+    attrs = await fill_attributes(Wrap(llm), "m", None, None, None)
     assert attrs == [{"id": 85, "value": "Термос"}]

@@ -23,7 +23,7 @@ async def pick_category(client, model, candidates, raw, translated) -> str:
     return str(json.loads(resp.choices[0].message.content)["category_id"])
 
 
-async def fill_attributes(client, model, schema_items, category_id, raw, translated) -> list[dict]:
+async def fill_attributes(client, model, schema_items, raw, translated) -> list[dict]:
     user = json.dumps({"schema": schema_items,
                        "product_zh": raw.model_dump() if raw else {},
                        "product_ru": translated.model_dump() if translated else {}},
