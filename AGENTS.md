@@ -13,4 +13,8 @@
 - 首次连接报 host key 确认时：加 `-o StrictHostKeyChecking=accept-new`，或先验证 `ssh -p 443 -T git@ssh.github.com`（输出 `Hi ryanhwong!` 即通）。
 
 ## Repo 状态
-- 目前是空仓库（尚无代码/工具链）。脚手架落地后，在此补充真实的 build / lint / test 命令与项目结构说明。
+- Python 项目（uv 管理），src 布局包名 `openoctopus`
+- 测试：`uv run pytest -v`（单测全 mock，真实外部调用由 `LIVE_MODE=1` 门控）
+- Lint：`uv run ruff check .`（提交前必须通过）
+- 本地运行：`uv run python -m openoctopus serve` → http://127.0.0.1:8765
+- 设计/计划文档：`docs/superpowers/specs/` 与 `docs/superpowers/plans/`
