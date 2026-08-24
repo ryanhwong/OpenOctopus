@@ -1,0 +1,58 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>人审 #{{ p['id'] }}</title>
+<style>
+ body{font-family:sans-serif;margin:24px}
+ .row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+ .col{flex:1;min-width:280px}
+ input,textarea,select{width:100%;box-sizing:border-box;margin:4px 0 12px}
+ label{font-weight:bold;font-size:13px}
+ .imgs img{max-width:120px;margin:4px}
+ button{margin-right:8px}
+</style></head><body>
+<h1>商品 #{{ p['id'] }} 人审</h1>
+<p>状态：{{ p['status'] }} | 来源：{{ p['source_url'] }}</p>
+
+<form method="post" action="/products/{{ p['id'] }}/edit">
+  <label>标题 (RU)</label>
+  <input name="title_ru" value="{{ t.get('title', {}).get('ru', '') }}">
+  <label>描述 (RU)</label>
+  <textarea name="description_ru" rows="6">{{ t.get('description', {}).get('ru', '') }}</textarea>
+  <label>价格 (RUB)</label>
+  <input name="price_rub" value="{{ p.get('price_rub') or '' }}">
+  <label>ozon 类目</label>
+  <input name="ozon_category_id" list="cats" value="{{ mapping.ozon_category_id if mapping else '' }}">
+  <datalist id="cats">
+    {% for c in cats %}<option value="{{ c['id'] }}">{{ c['title'] }}</option>{% endfor %}
+  </datalist>
+  <label>类目属性 JSON</label>
+  <textarea name="attributes_json" rows="4">{{ mapping.attributes_json if mapping else '{}' }}</textarea>
+  <button>保存</button>
+</form>
+
+<form method="post" action="/products/{{ p['id'] }}/approve" style="display:inline">
+  <button>提交上架</button>
+</form>
+<form method="post" action="/products/{{ p['id'] }}/regenerate" style="display:inline">
+  <button>重新生成</button>
+</form>
+
+<h3>原文对照</h3>
+<p><strong>标题：</strong>{{ t.get('title', {}).get('zh', '') }}</p>
+<p><strong>描述：</strong>{{ t.get('description', {}).get('zh', '') }}</p>
+
+<h3>图片</h3>
+<div class="imgs row">
+  <div>
+    <strong>源图</strong><br>
+    {% for img in images %}
+      {% if img['source_url'] %}<img src="{{ img['source_url'] }}">{% endif %}
+    {% endfor %}
+  </div>
+  <div>
+    <strong>译文图</strong><br>
+    {% for img in images %}
+      {% if img['translated_url'] %}<img src="{{ img['translated_url'] }}">{% endif %}
+    {% endfor %}
+  </div>
+</div>
+</body></html>

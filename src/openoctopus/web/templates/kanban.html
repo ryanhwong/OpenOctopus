@@ -1,0 +1,31 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>OpenOctopus</title>
+<style>
+ body{font-family:sans-serif;margin:24px}
+ .cols{display:flex;gap:16px;flex-wrap:wrap}
+ .col{flex:1;min-width:160px;background:#f4f4f4;border-radius:8px;padding:12px}
+ .card{background:#fff;border-radius:6px;padding:8px;margin-top:8px;font-size:13px}
+ form{margin:12px 0}
+</style></head><body>
+<h1>OpenOctopus 搬运工作台</h1>
+<form method="post" action="/products">
+  <input name="url" size="50" placeholder="粘贴 1688 商品链接">
+  <button>采集</button>
+</form>
+<form method="post" action="/products/import-html" enctype="multipart/form-data">
+  <input type="file" name="file" accept=".html">
+  <button>导入 HTML 兜底</button>
+</form>
+<div class="cols">
+{% for label, items in groups %}
+  <div class="col"><strong>{{ label }} ({{ items|length }})</strong>
+  {% for it in items %}
+    <div class="card">
+      <a href="/products/{{ it['id'] }}">#{{ it['id'] }}</a><br>
+      {{ it['source_url'][:40] }}
+    </div>
+  {% endfor %}
+  </div>
+{% endfor %}
+</div>
+</body></html>
