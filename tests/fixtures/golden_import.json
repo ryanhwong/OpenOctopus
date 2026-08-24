@@ -1,0 +1,15 @@
+{
+  "items": [{
+    "offer_id": "oo-1",
+    "name": "Термос из нержавеющей стали",
+    "description": "Портативный термос.",
+    "description_category_id": 42,
+    "price": "150.0",
+    "currency_code": "RUB",
+    "images": ["https://cdn.example.com/a.png"],
+    "attributes": [
+      {"complex_id": 0, "id": 85, "values": [{"value": "Сталь"}]},
+      {"complex_id": 0, "id": 90, "values": [{"dictionary_value_id": 123}]}
+    ]
+  }]
+}
