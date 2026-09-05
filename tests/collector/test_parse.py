@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from openoctopus.collector.html_parse import parse_product_html
 
 FIXTURE = Path(__file__).parent.parent / "fixtures" / "1688_page.html"
@@ -21,3 +23,15 @@ def test_adapter_matching():
     assert A1688PlaywrightAdapter.matches("https://detail.1688.com/offer/9.html")
     assert not A1688PlaywrightAdapter.matches("https://item.taobao.com/x.htm")
     assert isinstance(get_adapter("https://detail.1688.com/offer/9.html"), A1688PlaywrightAdapter)
+
+
+def test_captcha_page_raises():
+    html = "<html><head><title>CAPTCHA Verification</title></head><body></body></html>"
+    with pytest.raises(ValueError, match="验证"):
+        parse_product_html(html, "https://detail.1688.com/offer/9.html")
+
+
+def test_empty_page_raises():
+    html = "<html><head><title>1688</title></head><body><p>hi</p></body></html>"
+    with pytest.raises(ValueError, match="未找到商品"):
+        parse_product_html(html, "https://detail.1688.com/offer/9.html")

@@ -76,8 +76,8 @@ async def test_publish_sends_items_list_not_nested(tmp_path):
         "INSERT INTO products(id, source_url, platform, status, price_rub) "
         "VALUES(1, 'https://detail.1688.com/offer/1.html', '1688', 'review', 1000)")
     conn.execute(
-        "INSERT INTO category_mappings(product_id, ozon_category_id, attributes_json, human_confirmed) "
-        "VALUES(1, '123', '[]', 1)")
+        "INSERT INTO category_mappings(product_id, ozon_category_id, type_id, attributes_json,"
+        " human_confirmed) VALUES(1, '123', '456', '[]', 1)")
     conn.execute(
         "INSERT INTO translations(product_id, field, zh, ru) VALUES(1, 'title', '杯', 'Kruzhka')")
     conn.commit()

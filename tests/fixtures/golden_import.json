@@ -4,6 +4,7 @@
     "name": "Термос из нержавеющей стали",
     "description": "Портативный термос.",
     "description_category_id": 42,
+    "type_id": 99,
     "price": "150.0",
     "currency_code": "RUB",
     "images": ["https://cdn.example.com/a.png"],

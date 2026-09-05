@@ -128,7 +128,8 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         images = conn.execute("SELECT * FROM images WHERE product_id=? ORDER BY kind, id",
                               (pid,)).fetchall()
         mapping = conn.execute("SELECT * FROM category_mappings WHERE product_id=?", (pid,)).fetchone()
-        cats = conn.execute("SELECT id, title FROM ozon_categories ORDER BY title LIMIT 500").fetchall()
+        cats = conn.execute("SELECT id, title FROM ozon_categories WHERE id LIKE '%:%' "
+                              "ORDER BY title LIMIT 500").fetchall()
         return TEMPLATES.TemplateResponse(request, "review.html",
                                           {"p": p, "t": t, "images": images,
                                            "mapping": mapping, "cats": cats})
@@ -141,6 +142,12 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
             attrs = _json.loads(attributes_json)
         except _json.JSONDecodeError:
             return HTMLResponse("Invalid attributes_json", status_code=400)
+        # 类目字段为 "description_category_id:type_id" 复合 key；纯数字视为只有类目
+        raw_cat = (ozon_category_id or "").strip()
+        if ":" in raw_cat:
+            desc_id, type_id = raw_cat.split(":", 1)
+        else:
+            desc_id, type_id = raw_cat, ""
         if price_rub != "":
             try:
                 price_rub_val = float(price_rub)
@@ -154,10 +161,12 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         if price_rub_val is not None:
             conn.execute("UPDATE products SET price_rub=? WHERE id=?", (price_rub_val, pid))
         conn.execute(
-            "INSERT INTO category_mappings(product_id, ozon_category_id, attributes_json, human_confirmed)"
-            " VALUES(?,?,?,1) ON CONFLICT(product_id) DO UPDATE SET "
-            "ozon_category_id=excluded.ozon_category_id, attributes_json=excluded.attributes_json,"
-            " human_confirmed=1", (pid, ozon_category_id, _json.dumps(attrs, ensure_ascii=False)))
+            "INSERT INTO category_mappings(product_id, ozon_category_id, type_id, "
+            "attributes_json, human_confirmed)"
+            " VALUES(?,?,?,?,1) ON CONFLICT(product_id) DO UPDATE SET "
+            "ozon_category_id=excluded.ozon_category_id, type_id=excluded.type_id, "
+            "attributes_json=excluded.attributes_json,"
+            " human_confirmed=1", (pid, desc_id, type_id, _json.dumps(attrs, ensure_ascii=False)))
         conn.commit()
         return RedirectResponse(f"/products/{pid}", status_code=303)
 

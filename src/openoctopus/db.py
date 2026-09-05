@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS category_mappings(
   id INTEGER PRIMARY KEY,
   product_id INTEGER REFERENCES products(id),
   ozon_category_id TEXT,
+  type_id TEXT DEFAULT '',
   attributes_json TEXT DEFAULT '{}',
   human_confirmed INTEGER DEFAULT 0,
   UNIQUE(product_id));
@@ -84,5 +85,8 @@ def get_conn(path: str) -> sqlite3.Connection:
 def init_db(path: str) -> None:
     conn = get_conn(path)
     conn.executescript(SCHEMA_SQL)
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(category_mappings)")]
+    if "type_id" not in cols:
+        conn.execute("ALTER TABLE category_mappings ADD COLUMN type_id TEXT DEFAULT ''")
     conn.commit()
     conn.close()

@@ -18,9 +18,10 @@ class OzonClient:
     async def category_tree(self, language: str = "RU") -> dict:
         return await self._post(PATHS["category_tree"], {"language": language})
 
-    async def category_attributes(self, category_id: int) -> list[dict]:
-        out = await self._post(PATHS["category_attributes"], {"description_category_id": category_id,
-                                                              "language": "RU"})
+    async def category_attributes(self, description_category_id: int, type_id: int) -> list[dict]:
+        out = await self._post(PATHS["category_attributes"],
+                               {"description_category_id": description_category_id,
+                                "type_id": type_id, "language": "RU"})
         res = out.get("result", [])
         if isinstance(res, dict):
             return res.get("attributes", [])

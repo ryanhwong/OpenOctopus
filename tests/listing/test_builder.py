@@ -13,6 +13,7 @@ def test_build_matches_golden():
         offer_id="oo-1",
         price_rub=150.0,
         category_id=42,
+        type_id=99,
         attributes=[{"id": 85, "value": "Сталь"},
                     {"id": 90, "value": "", "dictionary_value_id": 123}],
         image_urls=["https://cdn.example.com/a.png"],
@@ -21,5 +22,5 @@ def test_build_matches_golden():
 
 
 def test_name_truncated():
-    p = build_import_payload("Б" * 500, "d", "of", 10.0, 1, [], [])
+    p = build_import_payload("Б" * 500, "d", "of", 10.0, 1, 2, [], [])
     assert len(p["items"][0]["name"]) == 200

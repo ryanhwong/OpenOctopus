@@ -29,8 +29,11 @@ class A1688PlaywrightAdapter:
         s = get_settings()
         state = Path(s.playwright_storage_state)
         state_existed = state.exists()
+        launch_kw: dict = {"headless": True}
+        if Path("/Applications/Google Chrome.app").exists():
+            launch_kw["channel"] = "chrome"
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(**launch_kw)
             ctx = browser.new_context(
                 storage_state=str(state) if state_existed else None,
                 user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",

@@ -1,8 +1,9 @@
 import json
 
 PICK_PROMPT = (
-    "Given a product description and candidate Ozon categories, pick the best "
-    'category_id. Respond strict JSON: {"category_id": "<id>"}'
+    "Given a product description and candidate Ozon leaf types, pick the best one. "
+    "Candidates are leaf types only; their ids look like "
+    '"<description_category_id>:<type_id>". Respond strict JSON: {"category_id": "<id>"}'
 )
 
 ATTRS_PROMPT = (

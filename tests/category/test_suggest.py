@@ -29,9 +29,9 @@ class Wrap:
 
 
 async def test_pick_and_fill():
-    llm = SeqLLM([json.dumps({"category_id": "42"}),
+    llm = SeqLLM([json.dumps({"category_id": "15621049:970575627"}),
                   json.dumps({"attributes": [{"id": 85, "value": "Термос"}]})])
     cat_id = await pick_category(Wrap(llm), "m", [], None, None)
-    assert cat_id == "42"
+    assert cat_id == "15621049:970575627"
     attrs = await fill_attributes(Wrap(llm), "m", None, None, None)
     assert attrs == [{"id": 85, "value": "Термос"}]

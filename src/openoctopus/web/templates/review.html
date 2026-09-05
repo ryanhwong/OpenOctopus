@@ -24,9 +24,9 @@
       <input id="f-price" name="price_rub" type="text" inputmode="decimal"
              value="{{ p.get('price_rub') or '' }}" placeholder="留空则用汇率自动换算价">
 
-      <label for="f-cat">Ozon 类目 ID</label>
+      <label for="f-cat">Ozon 叶子类型（类目:类型）</label>
       <input id="f-cat" name="ozon_category_id" type="text" list="cats"
-             value="{{ mapping.ozon_category_id if mapping else '' }}" placeholder="从下方候选选择或手动填写">
+             value="{% if mapping %}{{ mapping.ozon_category_id }}{% if mapping.type_id %}:{{ mapping.type_id }}{% endif %}{% endif %}" placeholder="从下方候选选择叶子类型">
       <datalist id="cats">
         {% for c in cats %}<option value="{{ c['id'] }}">{{ c['title'] }}</option>{% endfor %}
       </datalist>

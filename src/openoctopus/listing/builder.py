@@ -4,6 +4,7 @@ def build_import_payload(
     offer_id: str,
     price_rub: float,
     category_id: int,
+    type_id: int,
     attributes: list[dict],
     image_urls: list[str],
 ) -> dict:
@@ -14,6 +15,7 @@ def build_import_payload(
                 "name": title_ru[:200],
                 "description": description_ru,
                 "description_category_id": category_id,
+                "type_id": type_id,
                 "price": str(price_rub),
                 "currency_code": "RUB",
                 "images": image_urls,
