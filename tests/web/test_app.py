@@ -46,7 +46,7 @@ def test_kanban_shows_failed_job_with_retry(tmp_path):
     conn.commit()
     html = c.get("/").text
     assert "boom" in html
-    jid = conn.execute("SELECT id FROM jobs").fetchone()["id"]
+    jid = conn.execute("SELECT id FROM jobs WHERE status='failed'").fetchone()["id"]
     assert f"/jobs/{jid}/retry" in html
     assert c.post(f"/jobs/{jid}/retry", follow_redirects=False).status_code == 303
     assert conn.execute("SELECT status FROM jobs").fetchone()["status"] == "queued"
