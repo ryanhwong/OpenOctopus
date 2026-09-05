@@ -9,9 +9,11 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.cmd == "login":
+        import sys
+
         from openoctopus.login import main as login_main
 
-        login_main()
+        login_main(sys.argv[2:])
         return
 
     import uvicorn

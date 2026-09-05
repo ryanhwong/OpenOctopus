@@ -2,10 +2,10 @@ import argparse
 from pathlib import Path
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="openoctopus-login")
     parser.add_argument("--url", default="https://www.1688.com")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     from openoctopus.config import get_settings
 
