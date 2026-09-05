@@ -13,7 +13,8 @@ def test_parse_fixture():
     assert rp.platform == "1688"
     assert "保温杯" in rp.title_zh
     assert rp.price_cny == 12.5
-    assert len(rp.main_images) == 2
+    assert rp.main_images == ["https://cbu01.alicdn.com/img/main1.jpg",
+                              "https://cbu01.alicdn.com/img/main2.jpg"]
     assert "https://cbu01.alicdn.com/img/detail1.jpg" in rp.detail_images
 
 
