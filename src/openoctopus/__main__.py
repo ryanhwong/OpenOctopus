@@ -12,7 +12,11 @@ def main() -> None:
     if args.cmd == "desktop":
         from openoctopus.desktop import run_desktop
 
-        run_desktop()
+        try:
+            run_desktop()
+        except (RuntimeError, TimeoutError) as e:
+            print(f"启动失败：{e}")
+            raise SystemExit(1)
         return
 
     if args.cmd == "login":

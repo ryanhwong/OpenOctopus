@@ -94,3 +94,23 @@ def test_run_desktop_orchestrates(monkeypatch):
     assert calls["serve"][1:] == ("127.0.0.1", port)
     assert calls["window"] == ("OpenOctopus", f"http://127.0.0.1:{port}", 1280, 900)
     assert calls["started"] is True
+
+
+def test_desktop_main_reports_friendly_error(monkeypatch, capsys):
+    import sys
+
+    import openoctopus.__main__ as m
+    import openoctopus.desktop as desktop_mod
+
+    def boom():
+        raise RuntimeError("端口占用")
+
+    monkeypatch.setattr(desktop_mod, "run_desktop", boom)
+    monkeypatch.setattr(sys, "argv", ["prog", "desktop"])
+    try:
+        m.main()
+    except SystemExit as e:
+        assert e.code == 1
+    else:
+        raise AssertionError("expected SystemExit")
+    assert "启动失败" in capsys.readouterr().out
