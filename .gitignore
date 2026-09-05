@@ -27,3 +27,6 @@ __pycache__/
 
 # SDD scratch
 .superpowers/
+
+# runtime state
+data/
