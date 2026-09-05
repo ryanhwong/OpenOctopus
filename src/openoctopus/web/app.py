@@ -1,10 +1,12 @@
 import json as _json
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from openoctopus import login as login_mod
 from openoctopus.db import get_conn, init_db
 from openoctopus.jobs.handlers import HANDLERS, collect_from_html, upsert_translation
 from openoctopus.jobs.queue import JobRunner, enqueue
@@ -20,6 +22,14 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
     init_db(ctx.db_path)
     app = FastAPI()
     runner = JobRunner(get_conn(ctx.db_path), HANDLERS, ctx)
+    app.state.login_session = None
+    app.state.login_info = {"status": "idle", "logged_in": False, "checked_at": None}
+
+    def _login_snapshot():
+        info = dict(app.state.login_info)
+        if info["status"] == "idle" and Path(ctx.settings.playwright_storage_state).exists():
+            info["logged_in"] = True
+        return info
 
     @app.on_event("startup")
     async def _start():
@@ -49,7 +59,31 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         groups = [(label, conn.execute(
             "SELECT id, source_url FROM products WHERE status=? ORDER BY updated_at DESC",
             (st,)).fetchall()) for st, label in STATUS_GROUPS]
-        return TEMPLATES.TemplateResponse(request, "kanban.html", {"groups": groups})
+        return TEMPLATES.TemplateResponse(request, "kanban.html", {"groups": groups,
+                                                                     "login": _login_snapshot()})
+
+    @app.get("/login/status")
+    def login_status():
+        return JSONResponse(_login_snapshot())
+
+    @app.post("/login/start")
+    def login_start():
+        session = login_mod.LoginSession(ctx.settings.playwright_storage_state)
+        app.state.login_session = session
+        session.start()
+        app.state.login_info = {"status": "waiting", "logged_in": False, "checked_at": None}
+        return RedirectResponse("/", status_code=303)
+
+    @app.post("/login/finish")
+    def login_finish():
+        session = app.state.login_session
+        if session is None or session.status != "waiting":
+            return RedirectResponse("/", status_code=303)
+        saved = session.finish()
+        logged_in = saved and login_mod.verify_login(ctx.settings.playwright_storage_state)
+        app.state.login_info = {"status": "done", "logged_in": logged_in,
+                                "checked_at": datetime.now(timezone.utc).isoformat()}
+        return RedirectResponse("/", status_code=303)
 
     @app.post("/products")
     def submit(url: str = Form(...)):

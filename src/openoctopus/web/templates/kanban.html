@@ -1,6 +1,35 @@
 {% extends "base.html" %}
 {% block title %}看板 - OpenOctopus{% endblock %}
+{% block nav %}
+{% if login.status == "waiting" %}
+<span class="pill pill-generating">等待扫码…</span>
+<form method="post" action="/login/finish" style="display:inline">
+  <button class="btn btn-primary" type="submit">我已扫码完成</button>
+</form>
+{% elif login.logged_in %}
+<span class="pill pill-listed">1688 已登录{% if login.checked_at %} · {{ login.checked_at[:10] }}{% endif %}</span>
+<form method="post" action="/login/start" style="display:inline">
+  <button class="btn btn-ghost" type="submit">重新登录</button>
+</form>
+{% else %}
+<span class="pill pill-new">1688 未登录</span>
+<form method="post" action="/login/start" style="display:inline">
+  <button class="btn btn-primary" type="submit">登录 1688</button>
+</form>
+{% endif %}
+{% endblock %}
 {% block content %}
+{% if login.status == "waiting" %}
+<div class="card" style="margin-bottom:20px;border-color:var(--warning)">
+  <strong>已打开浏览器窗口</strong>
+  <p class="muted" style="margin:6px 0 0">请在弹出的 Chromium 窗口中扫码登录 1688，完成后点右上角「我已扫码完成」。窗口 10 分钟无操作会自动关闭。</p>
+</div>
+{% elif login.status == "done" and not login.logged_in %}
+<div class="card" style="margin-bottom:20px;border-color:var(--danger)">
+  <strong>登录态未能验证通过</strong>
+  <p class="muted" style="margin:6px 0 0">已保存浏览器状态，但访问会员中心仍被要求登录。请确认扫码成功后点「重新登录」再试一次。</p>
+</div>
+{% endif %}
 <div class="card" style="margin-bottom:20px">
   <h1 style="margin-bottom:4px">上架流水线</h1>
   <p class="muted" style="margin-top:0">粘贴 1688 链接自动采集翻译，或上传已保存的商品页 HTML 兜底。</p>
