@@ -30,8 +30,15 @@ def default_serve(app, host: str, port: int):
     return start_server_thread(app, host, port)
 
 
+def _default_get(url, timeout):
+    return httpx.get(url, timeout=timeout, trust_env=False)
+
+
 def wait_ready(url: str, timeout: float = READY_TIMEOUT, client=None) -> bool:
-    get = client.get if client is not None else httpx.get
+    if client is not None:
+        get = client.get
+    else:
+        get = _default_get
     deadline = time.monotonic() + timeout
     while True:
         try:

@@ -61,6 +61,19 @@ def free_port():
     return port
 
 
+def test_wait_ready_bypasses_proxy(monkeypatch):
+    seen = {}
+
+    def fake_get(url, timeout=2, **kwargs):
+        seen["timeout"] = timeout
+        seen.update(kwargs)
+        return Resp()
+
+    monkeypatch.setattr(d.httpx, "get", fake_get)
+    assert d.wait_ready("http://x/") is True
+    assert seen.get("trust_env") is False
+
+
 def test_run_desktop_orchestrates(monkeypatch):
     calls = {}
 
