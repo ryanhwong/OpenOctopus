@@ -6,7 +6,14 @@ def main() -> None:
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("serve")
     sub.add_parser("login")
+    sub.add_parser("desktop")
     args = parser.parse_args()
+
+    if args.cmd == "desktop":
+        from openoctopus.desktop import run_desktop
+
+        run_desktop()
+        return
 
     if args.cmd == "login":
         import sys
