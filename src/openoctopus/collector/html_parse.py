@@ -54,7 +54,7 @@ def _extract_title(soup: BeautifulSoup) -> str:
 
 
 def _extract_price(soup: BeautifulSoup) -> float:
-    for sel in (".od-price", ".price"):
+    for sel in ('[class*="od-price"]', ".od-price", ".price"):
         node = soup.select_one(sel)
         if node and (v := _first_number(node.get_text())):
             return v
@@ -67,7 +67,7 @@ def parse_product_html(html: str, source_url: str) -> RawProduct:
     title = _extract_title(soup)
     price = _extract_price(soup)
     main = _collect_imgs(soup, [".od-gallery-preview img", ".od-gallery-list img",
-                                "div.detail-gallery img"])
+                                "div.detail-gallery img"])[:15]
     detail = _collect_imgs(soup, [".content-detail img"])
     if not title and not main and not detail:
         raise ValueError("页面中未找到商品标题与图片，可能被反爬拦截，请重试或改用 HTML 导入兜底")
