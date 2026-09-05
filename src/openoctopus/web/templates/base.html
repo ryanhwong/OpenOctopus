@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}OpenOctopus{% endblock %}</title>
+<style>
+:root{
+  --bg:#f5f3fa; --surface:#ffffff; --surface-2:#faf9fd;
+  --primary:#7c3aed; --primary-dark:#6d28d9; --primary-soft:#ede9fe;
+  --cta:#f97316; --cta-dark:#ea580c;
+  --text:#1e1b2e; --muted:#5b5872; --border:#e3e0ee;
+  --success:#16a34a; --success-bg:#dcfce7;
+  --warning:#b45309; --warning-bg:#fef3c7;
+  --danger:#dc2626; --danger-bg:#fee2e2;
+  --info:#1d4ed8; --info-bg:#dbeafe;
+  --radius:10px; --radius-s:6px;
+  --shadow:0 1px 2px rgba(30,27,46,.06),0 4px 12px rgba(30,27,46,.06);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:"Fira Sans",system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:15px;line-height:1.6}
+a{color:var(--primary)}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);
+  padding:12px 24px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:30}
+.brand{font-weight:700;font-size:18px;color:var(--primary);text-decoration:none;white-space:nowrap}
+.brand small{font-weight:400;color:var(--muted);font-size:12px;margin-left:8px}
+.topbar nav{margin-left:auto;display:flex;gap:8px}
+.wrap{max-width:1280px;margin:0 auto;padding:24px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:20px}
+h1{font-size:22px;margin:0 0 16px}
+h2{font-size:17px;margin:24px 0 12px}
+h3{font-size:15px;margin:20px 0 8px}
+.muted{color:var(--muted);font-size:13px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  min-height:40px;padding:8px 18px;border-radius:var(--radius-s);border:1px solid transparent;
+  font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;
+  transition:background-color .2s,color .2s,border-color .2s,box-shadow .2s}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-cta{background:var(--cta);color:#fff}
+.btn-cta:hover{background:var(--cta-dark)}
+.btn-ghost{background:var(--surface);border-color:var(--border);color:var(--text)}
+.btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
+.btn-danger-ghost{background:var(--surface);border-color:var(--border);color:var(--danger)}
+.btn-danger-ghost:hover{border-color:var(--danger)}
+.btn:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{
+  outline:2px solid var(--primary);outline-offset:2px}
+input[type=text],input:not([type]),input[type=file],textarea,select{
+  width:100%;padding:9px 12px;margin:4px 0 14px;font-size:14px;color:var(--text);
+  border:1px solid var(--border);border-radius:var(--radius-s);background:var(--surface)}
+input::placeholder,textarea::placeholder{color:#9a97b3}
+label{display:block;font-weight:600;font-size:13px;margin-top:4px}
+.pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.pill-new{background:#f1f0f6;color:var(--muted)}
+.pill-collected{background:var(--info-bg);color:var(--info)}
+.pill-generating{background:var(--warning-bg);color:var(--warning)}
+.pill-review{background:#ffedd5;color:var(--cta-dark)}
+.pill-publishing{background:var(--primary-soft);color:var(--primary-dark)}
+.pill-listed{background:var(--success-bg);color:var(--success)}
+.pill-failed{background:var(--danger-bg);color:var(--danger)}
+.cols{display:flex;gap:14px;overflow-x:auto;padding-bottom:8px}
+.col{flex:1;min-width:200px;background:var(--surface-2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:12px}
+.col-head{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;margin-bottom:4px}
+.count{background:var(--primary-soft);color:var(--primary-dark);border-radius:999px;
+  font-size:12px;padding:0 9px;font-weight:700}
+.pcard{display:block;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-s);padding:10px 12px;margin-top:8px;font-size:13px;
+  color:var(--text);text-decoration:none;cursor:pointer;
+  transition:border-color .2s,box-shadow .2s}
+.pcard:hover{border-color:var(--primary);box-shadow:var(--shadow)}
+.pcard .pid{font-weight:700;color:var(--primary)}
+.pcard .url{color:var(--muted);word-break:break-all}
+.empty{color:var(--muted);font-size:13px;text-align:center;padding:16px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+@media (max-width:900px){.grid2{grid-template-columns:1fr}}
+.actionbar{position:sticky;bottom:0;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 16px;margin-top:20px;
+  display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.actionbar form{display:inline}
+.imgpair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;
+  border:1px solid var(--border);border-radius:var(--radius-s);padding:10px;background:var(--surface-2)}
+.imgpair figure{margin:0}
+.imgpair img{width:100%;border-radius:4px;display:block;background:#fff}
+.imgpair figcaption{font-size:12px;color:var(--muted);margin-bottom:4px}
+.srcbox{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-s);
+  padding:12px 14px;margin-bottom:10px;font-size:14px}
+@media (prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/">OpenOctopus<small>1688 → Ozon 搬运工作台</small></a>
+  <nav>{% block nav %}{% endblock %}</nav>
+</header>
+<main class="wrap">{% block content %}{% endblock %}</main>
+</body>
+</html>

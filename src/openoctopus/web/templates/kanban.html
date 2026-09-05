@@ -1,31 +1,33 @@
-<!doctype html>
-<html><head><meta charset="utf-8"><title>OpenOctopus</title>
-<style>
- body{font-family:sans-serif;margin:24px}
- .cols{display:flex;gap:16px;flex-wrap:wrap}
- .col{flex:1;min-width:160px;background:#f4f4f4;border-radius:8px;padding:12px}
- .card{background:#fff;border-radius:6px;padding:8px;margin-top:8px;font-size:13px}
- form{margin:12px 0}
-</style></head><body>
-<h1>OpenOctopus 搬运工作台</h1>
-<form method="post" action="/products">
-  <input name="url" size="50" placeholder="粘贴 1688 商品链接">
-  <button>采集</button>
-</form>
-<form method="post" action="/products/import-html" enctype="multipart/form-data">
-  <input type="file" name="file" accept=".html">
-  <button>导入 HTML 兜底</button>
-</form>
+{% extends "base.html" %}
+{% block title %}看板 - OpenOctopus{% endblock %}
+{% block content %}
+<div class="card" style="margin-bottom:20px">
+  <h1 style="margin-bottom:4px">上架流水线</h1>
+  <p class="muted" style="margin-top:0">粘贴 1688 链接自动采集翻译，或上传已保存的商品页 HTML 兜底。</p>
+  <form method="post" action="/products" style="display:flex;gap:10px;margin:14px 0 4px">
+    <input name="url" type="text" placeholder="粘贴 1688 商品链接，例如 https://detail.1688.com/offer/....html"
+           aria-label="1688 商品链接" style="margin:0">
+    <button class="btn btn-primary" type="submit" style="white-space:nowrap">采集</button>
+  </form>
+  <form method="post" action="/products/import-html" enctype="multipart/form-data"
+        style="display:flex;gap:10px;margin:8px 0 0;align-items:center">
+    <input type="file" name="file" accept=".html" aria-label="商品页 HTML 文件" style="margin:0">
+    <button class="btn btn-ghost" type="submit" style="white-space:nowrap">导入 HTML 兜底</button>
+  </form>
+</div>
+
 <div class="cols">
 {% for label, items in groups %}
-  <div class="col"><strong>{{ label }} ({{ items|length }})</strong>
-  {% for it in items %}
-    <div class="card">
-      <a href="/products/{{ it['id'] }}">#{{ it['id'] }}</a><br>
-      {{ it['source_url'][:40] }}
-    </div>
-  {% endfor %}
-  </div>
+  <section class="col" aria-label="{{ label }}">
+    <div class="col-head">{{ label }} <span class="count">{{ items|length }}</span></div>
+    {% for it in items %}
+      <a class="pcard" href="/products/{{ it['id'] }}" title="{{ it['source_url'] }}">
+        <span class="pid">#{{ it['id'] }}</span><br>
+        <span class="url">{{ it['source_url'][:48] }}</span>
+      </a>
+    {% endfor %}
+    {% if not items %}<div class="empty">暂无商品</div>{% endif %}
+  </section>
 {% endfor %}
 </div>
-</body></html>
+{% endblock %}

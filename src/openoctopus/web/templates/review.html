@@ -1,58 +1,80 @@
-<!doctype html>
-<html><head><meta charset="utf-8"><title>人审 #{{ p['id'] }}</title>
-<style>
- body{font-family:sans-serif;margin:24px}
- .row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
- .col{flex:1;min-width:280px}
- input,textarea,select{width:100%;box-sizing:border-box;margin:4px 0 12px}
- label{font-weight:bold;font-size:13px}
- .imgs img{max-width:120px;margin:4px}
- button{margin-right:8px}
-</style></head><body>
-<h1>商品 #{{ p['id'] }} 人审</h1>
-<p>状态：{{ p['status'] }} | 来源：{{ p['source_url'] }}</p>
+{% extends "base.html" %}
+{% block title %}人审 #{{ p['id'] }} - OpenOctopus{% endblock %}
+{% block nav %}<a class="btn btn-ghost" href="/">← 返回看板</a>{% endblock %}
+{% block content %}
+<div class="card" style="margin-bottom:20px">
+  <h1 style="margin-bottom:6px">商品 #{{ p['id'] }}
+    <span class="pill pill-{{ p['status'] }}">{{ p['status'] }}</span>
+  </h1>
+  <p class="muted" style="margin:0">来源：<a href="{{ p['source_url'] }}">{{ p['source_url'] }}</a>
+    {% if p.get('price_rub') %} ｜ 上架价：<strong>{{ p['price_rub'] }} ₽</strong>{% endif %}</p>
+</div>
 
-<form method="post" action="/products/{{ p['id'] }}/edit">
-  <label>标题 (RU)</label>
-  <input name="title_ru" value="{{ t.get('title', {}).get('ru', '') }}">
-  <label>描述 (RU)</label>
-  <textarea name="description_ru" rows="6">{{ t.get('description', {}).get('ru', '') }}</textarea>
-  <label>价格 (RUB)</label>
-  <input name="price_rub" value="{{ p.get('price_rub') or '' }}">
-  <label>ozon 类目</label>
-  <input name="ozon_category_id" list="cats" value="{{ mapping.ozon_category_id if mapping else '' }}">
-  <datalist id="cats">
-    {% for c in cats %}<option value="{{ c['id'] }}">{{ c['title'] }}</option>{% endfor %}
-  </datalist>
-  <label>类目属性 JSON</label>
-  <textarea name="attributes_json" rows="4">{{ mapping.attributes_json if mapping else '{}' }}</textarea>
-  <button>保存</button>
-</form>
+<div class="grid2">
+  <section class="card" aria-label="俄语草稿编辑">
+    <h2 style="margin-top:0">俄语草稿</h2>
+    <form method="post" action="/products/{{ p['id'] }}/edit">
+      <label for="f-title">标题 (RU)</label>
+      <input id="f-title" name="title_ru" type="text" value="{{ t.get('title', {}).get('ru', '') }}">
 
-<form method="post" action="/products/{{ p['id'] }}/approve" style="display:inline">
-  <button>提交上架</button>
-</form>
-<form method="post" action="/products/{{ p['id'] }}/regenerate" style="display:inline">
-  <button>重新生成</button>
-</form>
+      <label for="f-desc">描述 (RU)</label>
+      <textarea id="f-desc" name="description_ru" rows="8">{{ t.get('description', {}).get('ru', '') }}</textarea>
 
-<h3>原文对照</h3>
-<p><strong>标题：</strong>{{ t.get('title', {}).get('zh', '') }}</p>
-<p><strong>描述：</strong>{{ t.get('description', {}).get('zh', '') }}</p>
+      <label for="f-price">价格 (RUB)</label>
+      <input id="f-price" name="price_rub" type="text" inputmode="decimal"
+             value="{{ p.get('price_rub') or '' }}" placeholder="留空则用汇率自动换算价">
 
-<h3>图片</h3>
-<div class="imgs row">
+      <label for="f-cat">Ozon 类目 ID</label>
+      <input id="f-cat" name="ozon_category_id" type="text" list="cats"
+             value="{{ mapping.ozon_category_id if mapping else '' }}" placeholder="从下方候选选择或手动填写">
+      <datalist id="cats">
+        {% for c in cats %}<option value="{{ c['id'] }}">{{ c['title'] }}</option>{% endfor %}
+      </datalist>
+
+      <label for="f-attrs">类目属性 JSON</label>
+      <textarea id="f-attrs" name="attributes_json" rows="5" spellcheck="false">{{ mapping.attributes_json if mapping else '{}' }}</textarea>
+
+      <button class="btn btn-primary" type="submit">保存草稿</button>
+    </form>
+  </section>
+
   <div>
-    <strong>源图</strong><br>
-    {% for img in images %}
-      {% if img['source_url'] %}<img src="{{ img['source_url'] }}">{% endif %}
-    {% endfor %}
-  </div>
-  <div>
-    <strong>译文图</strong><br>
-    {% for img in images %}
-      {% if img['translated_url'] %}<img src="{{ img['translated_url'] }}">{% endif %}
-    {% endfor %}
+    <section class="card" aria-label="中文原文对照" style="margin-bottom:20px">
+      <h2 style="margin-top:0">中文原文对照</h2>
+      <div class="srcbox"><strong>标题：</strong>{{ t.get('title', {}).get('zh', '') }}</div>
+      <div class="srcbox"><strong>描述：</strong>{{ t.get('description', {}).get('zh', '') }}</div>
+    </section>
+
+    <section class="card" aria-label="图片前后对比">
+      <h2 style="margin-top:0">图片前后对比（{{ images|length }} 张）</h2>
+      {% for img in images %}
+      <div class="imgpair">
+        <figure>
+          <figcaption>源图 · {{ img['kind'] }}</figcaption>
+          {% if img['source_url'] %}
+          <img src="{{ img['source_url'] }}" alt="源图 #{{ img['id'] }}" loading="lazy">
+          {% else %}<p class="muted">无</p>{% endif %}
+        </figure>
+        <figure>
+          <figcaption>译文图 · {{ img['status'] }}</figcaption>
+          {% if img['translated_url'] %}
+          <img src="{{ img['translated_url'] }}" alt="译文图 #{{ img['id'] }}" loading="lazy">
+          {% else %}<p class="muted">尚未生成</p>{% endif %}
+        </figure>
+      </div>
+      {% endfor %}
+      {% if not images %}<p class="muted">暂无图片</p>{% endif %}
+    </section>
   </div>
 </div>
-</body></html>
+
+<div class="actionbar">
+  <form method="post" action="/products/{{ p['id'] }}/approve">
+    <button class="btn btn-cta" type="submit">提交上架</button>
+  </form>
+  <form method="post" action="/products/{{ p['id'] }}/regenerate">
+    <button class="btn btn-danger-ghost" type="submit">重新生成</button>
+  </form>
+  <span class="muted">提交前请确认译文、价格、类目与必填属性无误</span>
+</div>
+{% endblock %}
