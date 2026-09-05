@@ -19,6 +19,7 @@ dependencies = [
     "playwright>=1.62.0",
     "pydantic-settings>=2.15.0",
     "python-multipart>=0.0.32",
+    "pywebview>=6.2.1",
     "uvicorn[standard]>=0.52.4",
 ]
 

@@ -13,3 +13,11 @@ uv run python -m openoctopus serve   # http://127.0.0.1:8765
 ```
 
 设计文档见 `docs/superpowers/specs/`。
+
+## 桌面启动（macOS）
+
+双击 `scripts/OpenOctopus.command`（首次右键→打开以绕过 Gatekeeper），或：
+
+```bash
+uv run python -m openoctopus desktop
+```
