@@ -73,7 +73,13 @@ label{display:block;font-weight:600;font-size:13px;margin-top:4px}
   transition:border-color .2s,box-shadow .2s}
 .pcard:hover{border-color:var(--primary);box-shadow:var(--shadow)}
 .pcard .pid{font-weight:700;color:var(--primary)}
-.pcard .url{color:var(--muted);word-break:break-all}
+.pcard .url{color:var(--muted);overflow-wrap:anywhere}
+.urllink{overflow-wrap:anywhere;word-break:break-all}
+.joberr{background:var(--danger-bg);color:var(--danger);border-radius:var(--radius-s);
+  padding:8px 10px;margin-top:8px;font-size:12px}
+.joberr form{margin:6px 0 0}
+.jobrun{background:var(--warning-bg);color:var(--warning);border-radius:var(--radius-s);
+  padding:6px 10px;margin-top:8px;font-size:12px}
 .empty{color:var(--muted);font-size:13px;text-align:center;padding:16px 0}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
 @media (max-width:900px){.grid2{grid-template-columns:1fr}}

@@ -6,7 +6,7 @@
   <h1 style="margin-bottom:6px">商品 #{{ p['id'] }}
     <span class="pill pill-{{ p['status'] }}">{{ p['status'] }}</span>
   </h1>
-  <p class="muted" style="margin:0">来源：<a href="{{ p['source_url'] }}">{{ p['source_url'] }}</a>
+  <p class="muted" style="margin:0">来源：<a class="urllink" href="{{ p['source_url'] }}">{{ p['source_url'] }}</a>
     {% if p.get('price_rub') %} ｜ 上架价：<strong>{{ p['price_rub'] }} ₽</strong>{% endif %}</p>
 </div>
 

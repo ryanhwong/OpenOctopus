@@ -28,6 +28,30 @@ def test_submit_url_enqueues_collect(tmp_path):
     assert conn.execute("SELECT count(*) FROM jobs WHERE type='collect'").fetchone()[0] == 1
 
 
+def test_submit_url_strips_tracking_params(tmp_path):
+    c, db_path = make_client(tmp_path)
+    c.post("/products", data={
+        "url": "https://detail.1688.com/offer/9.html?spm=a26352.1&uuid=xyz#frag"})
+    conn = get_conn(db_path)
+    saved = conn.execute("SELECT source_url FROM products").fetchone()["source_url"]
+    assert saved == "https://detail.1688.com/offer/9.html"
+
+
+def test_kanban_shows_failed_job_with_retry(tmp_path):
+    c, db_path = make_client(tmp_path)
+    c.post("/products", data={"url": "https://detail.1688.com/offer/9.html"})
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO jobs(type, payload_json, status, retries, error) "
+                 "VALUES('collect', '{\"product_id\": 1}', 'failed', 3, 'boom')")
+    conn.commit()
+    html = c.get("/").text
+    assert "boom" in html
+    jid = conn.execute("SELECT id FROM jobs").fetchone()["id"]
+    assert f"/jobs/{jid}/retry" in html
+    assert c.post(f"/jobs/{jid}/retry", follow_redirects=False).status_code == 303
+    assert conn.execute("SELECT status FROM jobs").fetchone()["status"] == "queued"
+
+
 def test_kanban_shows_groups(tmp_path):
     c, _ = make_client(tmp_path)
     c.post("/products", data={"url": "https://detail.1688.com/offer/9.html"})

@@ -54,6 +54,16 @@
         <span class="pid">#{{ it['id'] }}</span><br>
         <span class="url">{{ it['source_url'][:48] }}</span>
       </a>
+      {% set job = jobs.get(it['id']) %}
+      {% if job and job['status'] == 'failed' %}
+      <div class="joberr">失败({{ job['type'] }}, {{ job['retries'] }}次)：{{ (job['error'] or '')[:120] }}
+        <form method="post" action="/jobs/{{ job['id'] }}/retry">
+          <button class="btn btn-ghost" type="submit" style="min-height:32px;padding:2px 12px">重试</button>
+        </form>
+      </div>
+      {% elif job and (job['status'] in ('running',) or job['retries']) %}
+      <div class="jobrun">{{ job['type'] }} 执行中…</div>
+      {% endif %}
     {% endfor %}
     {% if not items %}<div class="empty">暂无商品</div>{% endif %}
   </section>

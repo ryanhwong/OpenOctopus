@@ -39,3 +39,30 @@ async def test_done_and_retry_paths(db):
     await r.run_once()
     row = db.execute("SELECT * FROM jobs WHERE type='boom'").fetchone()
     assert row["status"] == "failed" and row["error"] == "x" and row["retries"] == 3
+
+
+async def test_run_once_from_other_thread(db):
+    """桌面版 uvicorn 跑在子线程：runner 连接必须跨线程可用。"""
+    import asyncio
+    import threading
+
+    calls = []
+
+    async def ok(ctx, payload):
+        calls.append(1)
+
+    enqueue(db, "ok", {})
+    r = JobRunner(db, {"ok": ok})
+    outcome = {}
+
+    def target():
+        try:
+            outcome["worked"] = asyncio.run(r.run_once())
+        except Exception as e:  # noqa: BLE001
+            outcome["error"] = e
+
+    t = threading.Thread(target=target)
+    t.start()
+    t.join(timeout=10)
+    assert "error" not in outcome, outcome.get("error")
+    assert outcome.get("worked") is True and calls == [1]

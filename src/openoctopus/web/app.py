@@ -59,8 +59,19 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         groups = [(label, conn.execute(
             "SELECT id, source_url FROM products WHERE status=? ORDER BY updated_at DESC",
             (st,)).fetchall()) for st, label in STATUS_GROUPS]
+        job_by_product = {}
+        for j in conn.execute(
+                "SELECT id, type, status, retries, error, payload_json FROM jobs "
+                "WHERE status IN ('queued','running','failed') ORDER BY id DESC").fetchall():
+            try:
+                pid = _json.loads(j["payload_json"] or "{}").get("product_id")
+            except _json.JSONDecodeError:
+                continue
+            if pid is not None and pid not in job_by_product:
+                job_by_product[pid] = dict(j)
         return TEMPLATES.TemplateResponse(request, "kanban.html", {"groups": groups,
-                                                                     "login": _login_snapshot()})
+                                                                     "login": _login_snapshot(),
+                                                                     "jobs": job_by_product})
 
     @app.get("/login/status")
     def login_status():
@@ -87,6 +98,12 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
 
     @app.post("/products")
     def submit(url: str = Form(...)):
+        from urllib.parse import urlsplit, urlunsplit
+
+        url = url.strip()
+        parts = urlsplit(url)
+        if parts.scheme and parts.netloc:
+            url = urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
         conn = get_conn(ctx.db_path)
         cur = conn.execute(
             "INSERT INTO products(source_url, platform, status) VALUES(?, '1688', 'new')", (url,))

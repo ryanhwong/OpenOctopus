@@ -73,7 +73,9 @@ def get_conn(path: str) -> sqlite3.Connection:
     import os
 
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-    conn = sqlite3.connect(path)
+    # 桌面版 uvicorn 跑在子线程：连接必须允许跨线程使用；
+    # timeout 防 worker 与 web 写并发时报 database is locked
+    conn = sqlite3.connect(path, timeout=30.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     return conn
