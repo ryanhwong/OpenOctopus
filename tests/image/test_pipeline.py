@@ -127,3 +127,47 @@ def test_fit_boxes_garbage_dropped():
              TextBox(x=100, y=100, w=50, h=50, zh_text="", ru_text="")]
     out = _fit_boxes_to_image(boxes, 800, 800)
     assert [(b.x, b.y, b.w, b.h) for b in out] == [(100, 100, 50, 50)]
+
+
+def test_leftover_filter_keeps_non_overlapping():
+    from openoctopus.image.pipeline import _leftover_boxes
+    from openoctopus.models import TextBox
+
+    first = [TextBox(x=10, y=10, w=50, h=50, zh_text="", ru_text="")]
+    second = [TextBox(x=12, y=12, w=40, h=40, zh_text="", ru_text=""),
+              TextBox(x=500, y=500, w=40, h=40, zh_text="", ru_text="")]
+    out = _leftover_boxes(first, second)
+    assert [(b.x, b.y) for b in out] == [(500, 500)]
+
+
+class SeqVisionCompletions:
+    def __init__(self, replies):
+        self.replies = replies
+        self.calls = 0
+
+    async def create(self, **kw):
+        import json as _json
+
+        self.calls += 1
+        payload = {"boxes": self.replies[min(self.calls - 1, len(self.replies) - 1)]}
+        msg = type("M", (), {"content": _json.dumps(payload)})()
+        return type("R", (), {"choices": [type("C", (), {"message": msg})()]})()
+
+
+async def test_second_pass_runs_and_filters():
+    from openoctopus.image.pipeline import VlmPipelineTranslator
+
+    comp = SeqVisionCompletions([
+        [{"x": 10, "y": 10, "w": 20, "h": 20, "zh_text": "杯", "ru_text": "Чашка"}],
+        [{"x": 12, "y": 12, "w": 18, "h": 18, "zh_text": "", "ru_text": ""}],
+    ])
+    chat = type("Chat", (), {"completions": comp})()
+    client = type("Client", (), {"chat": chat})()
+    storage = FakeStorage()
+    tr = VlmPipelineTranslator(client, "m", storage, "/fonts/x.ttf",
+                               http=FakeHttp(b"img"), render=fake_render)
+    # b"img" 非法图片 -> downscale 透传；render 固定字节；第二遍 Image.open 失败 -> 原样返回
+    result = await tr.translate("https://example.com/a.png", "hint")
+    assert result == "https://cdn.example.com/out.png"
+    assert comp.calls == 2
+    assert storage.put_called is True

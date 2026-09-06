@@ -4,8 +4,8 @@ from io import BytesIO
 import httpx
 from PIL import Image
 
-from openoctopus.image.detect import detect_and_translate
-from openoctopus.image.render import translate_image_bytes
+from openoctopus.image.detect import LEFTOVER_PROMPT, detect_and_translate
+from openoctopus.image.render import erase_boxes, translate_image_bytes
 from openoctopus.models import TextBox
 
 MAX_VLM_SIDE = 1024
@@ -33,6 +33,20 @@ def _rescale_boxes(boxes: list[TextBox], scale: float) -> list[TextBox]:
     return [TextBox(x=int(b.x / scale), y=int(b.y / scale),
                     w=int(b.w / scale), h=int(b.h / scale),
                     zh_text=b.zh_text, ru_text=b.ru_text) for b in boxes]
+
+
+def _iou(a: TextBox, b: TextBox) -> float:
+    x0, y0 = max(a.x, b.x), max(a.y, b.y)
+    x1, y1 = min(a.x + a.w, b.x + b.w), min(a.y + a.h, b.y + b.h)
+    inter = max(0, x1 - x0) * max(0, y1 - y0)
+    union = a.w * a.h + b.w * b.h - inter
+    return inter / union if union else 0.0
+
+
+def _leftover_boxes(first: list[TextBox], second: list[TextBox]) -> list[TextBox]:
+    """第二遍只处理与第一遍面板区基本不重叠的残留，不动俄文译文。"""
+    return [b for b in second
+            if all(_iou(b, f) < 0.1 for f in first)]
 
 
 def _fit_boxes_to_image(boxes: list[TextBox], width: int, height: int) -> list[TextBox]:
@@ -82,5 +96,25 @@ class VlmPipelineTranslator:
         if not boxes:
             return image_url
         out = self.render(data, boxes, self.font_path)
+        out = await self._cleanup_leftovers(out, boxes)
         key = f"{key_hint}-{hashlib.sha1(image_url.encode()).hexdigest()[:10]}.png"
         return self.storage.put(key, out)
+
+    async def _cleanup_leftovers(self, rendered: bytes,
+                                 first_boxes: list[TextBox]) -> bytes:
+        """渲染完再扫一遍残留中文/英文 logo，只抹面板区之外的，俄文不动。失败则原样返回。"""
+        try:
+            small, scale = downscale_for_vlm(rendered)
+            second = await detect_and_translate(self.client, self.model, small,
+                                                LEFTOVER_PROMPT)
+            img = Image.open(BytesIO(rendered)).convert("RGB")
+            cands = _fit_boxes_to_image(_rescale_boxes(second, scale), *img.size)
+            leftovers = _leftover_boxes(first_boxes, cands)
+            if not leftovers:
+                return rendered
+            out = erase_boxes(img, leftovers)
+            buf = BytesIO()
+            out.save(buf, "PNG")
+            return buf.getvalue()
+        except Exception:  # noqa: BLE001
+            return rendered

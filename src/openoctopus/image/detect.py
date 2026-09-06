@@ -29,12 +29,13 @@ def _normalize_box(b: dict) -> TextBox:
     return TextBox(**b)
 
 
-async def detect_and_translate(client, model: str, image_bytes: bytes) -> list[TextBox]:
+async def detect_and_translate(client, model: str, image_bytes: bytes,
+                               prompt: str = DETECT_PROMPT) -> list[TextBox]:
     b64 = base64.b64encode(image_bytes).decode()
     resp = await client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": [
-            {"type": "text", "text": DETECT_PROMPT},
+            {"type": "text", "text": prompt},
             {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
         ]}],
         response_format={"type": "json_object"},
@@ -42,3 +43,13 @@ async def detect_and_translate(client, model: str, image_bytes: bytes) -> list[T
     )
     data = parse_json(resp.choices[0].message.content)
     return [_normalize_box(b) for b in data.get("boxes", [])]
+
+
+LEFTOVER_PROMPT = (
+    "Find any REMAINING Chinese text or English brand logos/watermarks in this image. "
+    "IGNORE all Russian (Cyrillic) text - it is correct and must stay. "
+    "For each leftover region respond with an object "
+    '{"x": int, "y": int, "w": int, "h": int}. '
+    "Be exhaustive, check corners and edges. "
+    'Respond strict JSON: {"boxes": [...]}'
+)
