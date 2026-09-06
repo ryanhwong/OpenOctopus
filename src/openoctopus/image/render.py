@@ -11,9 +11,10 @@ def erase_boxes(img: Image.Image, boxes: list[TextBox]) -> Image.Image:
     arr = cv2.cvtColor(np.array(img.convert("RGB")), cv2.COLOR_RGB2BGR)
     mask = np.zeros(arr.shape[:2], np.uint8)
     for b in boxes:
-        mask[max(0, b.y):b.y + b.h, max(0, b.x):b.x + b.w] = 255
+        x0, y0, x1, y1 = _label_box(img, b)
+        mask[y0:y1, x0:x1] = 255
     if boxes:
-        arr = cv2.inpaint(arr, mask, 5, cv2.INPAINT_TELEA)
+        arr = cv2.inpaint(arr, mask, 10, cv2.INPAINT_TELEA)
     return Image.fromarray(cv2.cvtColor(arr, cv2.COLOR_BGR2RGB))
 
 
@@ -46,7 +47,7 @@ def _contrast_text_color(bg: tuple[int, int, int]) -> tuple[int, int, int]:
     return (30, 30, 30) if lum > 130 else (245, 245, 245)
 
 
-def _label_box(img: Image.Image, b: TextBox, pad_ratio: float = 0.25) -> tuple[int, int, int, int]:
+def _label_box(img: Image.Image, b: TextBox, pad_ratio: float = 0.4) -> tuple[int, int, int, int]:
     pad_w, pad_h = int(b.w * pad_ratio), int(b.h * pad_ratio)
     x0, y0 = max(0, b.x - pad_w), max(0, b.y - pad_h)
     x1, y1 = min(img.width, b.x + b.w + pad_w), min(img.height, b.y + b.h + pad_h)
@@ -59,7 +60,7 @@ def _draw_label(img: Image.Image, b: TextBox, font_path: str) -> None:
         return
     bg = _bg_color(img, b)
     x0, y0, x1, y1 = _label_box(img, b)
-    ImageDraw.Draw(img).rectangle([x0, y0, x1, y1], fill=bg)
+    ImageDraw.Draw(img).rectangle([x0, y0, x1 - 1, y1 - 1], fill=bg)
     layer = Image.new("RGBA", (x1 - x0, y1 - y0), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
     f = _fit_font(d, b.ru_text, x1 - x0, y1 - y0, font_path)

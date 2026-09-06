@@ -92,5 +92,5 @@ def test_label_background_matches_surroundings_not_black():
     base = Image.new("RGB", (200, 100), (240, 240, 240))
     box = TextBox(x=60, y=40, w=80, h=20, zh_text="杯", ru_text="Чашка")
     out = draw_translations(base.copy(), [box], FONT_PATH)
-    assert sum(out.getpixel((62, 42))) > 450
+    assert sum(out.getpixel((30, 34))) > 450
     assert_outside_label_unchanged(base, out, box)
