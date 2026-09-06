@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "OpenOctopus 采集",
+  "version": "0.1.0",
+  "description": "一键采集 1688 商品到本地 OpenOctopus",
+  "permissions": ["activeTab"],
+  "host_permissions": ["http://127.0.0.1:8765/*"],
+  "content_scripts": [
+    {
+      "matches": ["*://detail.1688.com/offer/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

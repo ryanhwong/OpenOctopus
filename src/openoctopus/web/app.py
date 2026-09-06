@@ -8,7 +8,12 @@ from fastapi.templating import Jinja2Templates
 
 from openoctopus import login as login_mod
 from openoctopus.db import get_conn, init_db
-from openoctopus.jobs.handlers import HANDLERS, collect_from_html, upsert_translation
+from openoctopus.jobs.handlers import (
+    HANDLERS,
+    collect_from_html,
+    persist_raw_product,
+    upsert_translation,
+)
 from openoctopus.jobs.queue import JobRunner, enqueue
 
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -115,6 +120,18 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
     async def import_html(file: UploadFile):
         collect_from_html(ctx, await file.read(), file.filename)
         return RedirectResponse("/", status_code=303)
+
+    @app.post("/products/import-json")
+    async def import_json(request: Request):
+        from openoctopus.models import RawProduct
+
+        try:
+            rp = RawProduct(**await request.json())
+        except Exception:  # noqa: BLE001
+            return JSONResponse({"ok": False, "error": "invalid payload"}, status_code=400)
+        conn = get_conn(ctx.db_path)
+        pid = persist_raw_product(conn, rp)
+        return JSONResponse({"ok": True, "product_id": pid})
 
     @app.get("/products/{pid}", response_class=HTMLResponse)
     def review(request: Request, pid: int):

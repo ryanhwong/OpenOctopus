@@ -140,12 +140,8 @@ async def handle_publish(ctx, payload: dict) -> None:
     conn.commit()
 
 
-def collect_from_html(ctx, file_bytes: bytes, filename: str) -> int:
-    from openoctopus.collector.html_parse import parse_product_html
-    from openoctopus.db import get_conn
-
-    conn = get_conn(ctx.db_path)
-    rp = parse_product_html(file_bytes.decode("utf-8", "ignore"), f"upload:{filename}")
+def persist_raw_product(conn, rp) -> int:
+    """落库已采集商品（collected）并排队 generate，返回 product_id。"""
     cur = conn.execute(
         "INSERT INTO products(source_url, platform, status) VALUES(?, '1688', 'collected')",
         (rp.source_url,))
@@ -159,6 +155,15 @@ def collect_from_html(ctx, file_bytes: bytes, filename: str) -> int:
     conn.commit()
     enqueue(conn, "generate", {"product_id": pid})
     return pid
+
+
+def collect_from_html(ctx, file_bytes: bytes, filename: str) -> int:
+    from openoctopus.collector.html_parse import parse_product_html
+    from openoctopus.db import get_conn
+
+    rp = parse_product_html(file_bytes.decode("utf-8", "ignore"), f"upload:{filename}")
+    conn = get_conn(ctx.db_path)
+    return persist_raw_product(conn, rp)
 
 
 HANDLERS = {"collect": handle_collect, "generate": handle_generate, "publish": handle_publish}
