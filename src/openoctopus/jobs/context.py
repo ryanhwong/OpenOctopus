@@ -8,6 +8,7 @@ from openoctopus.config import Settings
 from openoctopus.content.translators import LLMContentTranslator
 from openoctopus.db import init_db
 from openoctopus.image.pipeline import VlmPipelineTranslator
+from openoctopus.llm_fallback import FallbackChatClient
 from openoctopus.ozon.client import BASE_URL, OzonClient
 from openoctopus.storage.r2 import make_r2
 
@@ -28,14 +29,20 @@ def build_context(settings: Settings) -> AppContext:
     init_db(settings.db_path)
     ctx = AppContext(settings=settings, db_path=settings.db_path,
                      adapters=[A1688PlaywrightAdapter()])
-    llm = AsyncOpenAI(base_url=settings.openrouter_base_url,
-                      api_key=settings.openrouter_api_key or "missing",
-                      timeout=120.0, max_retries=1)
-    ctx.llm_client = llm
-    ctx.content_translator = LLMContentTranslator(llm, settings.content_model)
+    primary = AsyncOpenAI(base_url=settings.opencode_base_url,
+                          api_key=settings.opencode_api_key or "missing",
+                          timeout=120.0, max_retries=1)
+    fallback = AsyncOpenAI(base_url=settings.openrouter_base_url,
+                           api_key=settings.openrouter_api_key or "missing",
+                           timeout=120.0, max_retries=1)
+    ctx.llm_client = FallbackChatClient(primary, settings.content_model,
+                                        fallback, settings.fallback_content_model)
+    ctx.content_translator = LLMContentTranslator(ctx.llm_client, settings.content_model)
     ctx.storage = make_r2(settings)
     ctx.image_translator = VlmPipelineTranslator(
-        llm, settings.image_model, ctx.storage, settings.font_path,
+        FallbackChatClient(primary, settings.image_model,
+                           fallback, settings.fallback_image_model),
+        settings.image_model, ctx.storage, settings.font_path,
         httpx.AsyncClient(timeout=60))
     ctx.ozon = OzonClient(httpx.AsyncClient(base_url=BASE_URL, timeout=60),
                           settings.ozon_client_id, settings.ozon_api_key)

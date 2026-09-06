@@ -13,8 +13,13 @@ class Settings(BaseSettings):
 
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
-    content_model: str = "qwen/qwen3-30b-a3b:free"
-    image_model: str = "qwen/qwen2.5-vl-72b-instruct:free"
+    content_model: str = "deepseek-v4-flash"
+    image_model: str = "deepseek-v4-flash-vision-exp"
+    fallback_content_model: str = "minimax/minimax-m2.7:free"
+    fallback_image_model: str = "minimax/minimax-m3:free"
+
+    opencode_api_key: str = ""
+    opencode_base_url: str = "https://opencode.ai/zen/v1"
 
     r2_endpoint: str = ""
     r2_bucket: str = ""
