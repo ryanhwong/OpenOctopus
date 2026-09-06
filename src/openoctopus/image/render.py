@@ -2,7 +2,7 @@ import io
 
 import cv2
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from openoctopus.models import TextBox
 
@@ -47,7 +47,7 @@ def _contrast_text_color(bg: tuple[int, int, int]) -> tuple[int, int, int]:
     return (30, 30, 30) if lum > 130 else (245, 245, 245)
 
 
-def _label_box(img: Image.Image, b: TextBox, pad_ratio: float = 0.4) -> tuple[int, int, int, int]:
+def _label_box(img: Image.Image, b: TextBox, pad_ratio: float = 0.25) -> tuple[int, int, int, int]:
     pad_w, pad_h = int(b.w * pad_ratio), int(b.h * pad_ratio)
     x0, y0 = max(0, b.x - pad_w), max(0, b.y - pad_h)
     x1, y1 = min(img.width, b.x + b.w + pad_w), min(img.height, b.y + b.h + pad_h)
@@ -55,20 +55,25 @@ def _label_box(img: Image.Image, b: TextBox, pad_ratio: float = 0.4) -> tuple[in
 
 
 def _draw_label(img: Image.Image, b: TextBox, font_path: str) -> None:
-    """原地绘制：背景色标签（盖住原文残影）+ 对比色文字（蒙版合成防溢出）。"""
+    """原地绘制：背景色标签 + 对比色文字，边缘羽化融入照片。"""
     if not b.ru_text:
         return
     bg = _bg_color(img, b)
     x0, y0, x1, y1 = _label_box(img, b)
-    ImageDraw.Draw(img).rectangle([x0, y0, x1 - 1, y1 - 1], fill=bg)
-    layer = Image.new("RGBA", (x1 - x0, y1 - y0), (0, 0, 0, 0))
-    d = ImageDraw.Draw(layer)
-    f = _fit_font(d, b.ru_text, x1 - x0, y1 - y0, font_path)
+    w, h = x1 - x0, y1 - y0
+    if w <= 0 or h <= 0:
+        return
+    label = Image.new("RGB", (w, h), bg)
+    d = ImageDraw.Draw(label)
+    f = _fit_font(d, b.ru_text, w, h, font_path)
     tw = d.textlength(b.ru_text, font=f)
     asc, desc = f.getmetrics()
-    d.text((max(0, (x1 - x0 - tw) // 2), max(0, (y1 - y0 - (asc + desc)) // 2)),
-           b.ru_text, font=f, fill=_contrast_text_color(bg) + (255,))
-    img.paste(layer, (x0, y0), layer)
+    d.text((max(0, (w - tw) // 2), max(0, (h - (asc + desc)) // 2)),
+           b.ru_text, font=f, fill=_contrast_text_color(bg))
+    mask = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(mask).rectangle([0, 0, w - 1, h - 1], fill=255)
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=max(2, min(w, h) // 10)))
+    img.paste(label, (x0, y0), mask)
 
 
 def draw_translations(img: Image.Image, boxes: list[TextBox], font_path: str) -> Image.Image:

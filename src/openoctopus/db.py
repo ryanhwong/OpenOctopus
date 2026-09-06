@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS images(
   source_url TEXT NOT NULL,
   translated_url TEXT,
   status TEXT NOT NULL DEFAULT 'pending',
+  selected INTEGER NOT NULL DEFAULT 1,
   meta_json TEXT DEFAULT '{}');
 
 CREATE TABLE IF NOT EXISTS category_mappings(
@@ -88,5 +89,8 @@ def init_db(path: str) -> None:
     cols = [r["name"] for r in conn.execute("PRAGMA table_info(category_mappings)")]
     if "type_id" not in cols:
         conn.execute("ALTER TABLE category_mappings ADD COLUMN type_id TEXT DEFAULT ''")
+    img_cols = [r["name"] for r in conn.execute("PRAGMA table_info(images)")]
+    if "selected" not in img_cols:
+        conn.execute("ALTER TABLE images ADD COLUMN selected INTEGER NOT NULL DEFAULT 1")
     conn.commit()
     conn.close()

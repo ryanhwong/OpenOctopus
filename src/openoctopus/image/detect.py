@@ -4,11 +4,14 @@ from openoctopus.llm_json import parse_json
 from openoctopus.models import TextBox
 
 DETECT_PROMPT = (
-    "Locate ALL Chinese text in this product image. For each region respond with "
+    "Locate ALL text in this product image, including English brand logos, "
+    "watermarks and corner labels — not only Chinese. For each region respond with "
     'an object {"x": int, "y": int, "w": int, "h": int, "zh_text": str, "ru_text": str} '
     "where x,y,w,h are integers from the top-left corner. "
-    "ru_text is the Russian translation suited for e-commerce. "
-    'Include prices as-is converted to format "Цена: <число> юаней". '
+    "For Chinese text, ru_text is the Russian translation suited for e-commerce "
+    '(prices as "Цена: <число> юаней"). '
+    "For NON-Chinese text (English logos etc.), set ru_text to empty string — "
+    "it will be erased and not redrawn. Be exhaustive, include small text. "
     'Respond strict JSON: {"boxes": [...]}'
 )
 

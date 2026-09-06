@@ -118,6 +118,21 @@ def test_review_and_edit_flow(tmp_path):
     assert conn.execute("SELECT status FROM products WHERE id=1").fetchone()["status"] == "publishing"
 
 
+def test_edit_toggles_image_selected(tmp_path):
+    c, db_path = make_client(tmp_path)
+    files = {"file": ("p.html", BytesIO(PAGE.encode()), "text/html")}
+    c.post("/products/import-html", files=files)
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO images(product_id, kind, source_url) VALUES(1, 'main', 'https://img/a.jpg')")
+    conn.commit()
+    base = {"title_ru": "T", "description_ru": "D", "price_rub": "",
+            "ozon_category_id": "42", "attributes_json": "[]"}
+    c.post("/products/1/edit", data={**base, "sel_1": "1"})
+    assert conn.execute("SELECT selected FROM images WHERE id=1").fetchone()["selected"] == 1
+    c.post("/products/1/edit", data=base)
+    assert conn.execute("SELECT selected FROM images WHERE id=1").fetchone()["selected"] == 0
+
+
 def test_edit_invalid_attributes_returns_400(tmp_path):
     c, _ = make_client(tmp_path)
     files = {"file": ("p.html", BytesIO(PAGE.encode()), "text/html")}

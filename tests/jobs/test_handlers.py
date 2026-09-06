@@ -80,6 +80,9 @@ async def test_publish_sends_items_list_not_nested(tmp_path):
         " human_confirmed) VALUES(1, '123', '456', '[]', 1)")
     conn.execute(
         "INSERT INTO translations(product_id, field, zh, ru) VALUES(1, 'title', '杯', 'Kruzhka')")
+    conn.execute(
+        "INSERT INTO images(product_id, kind, source_url, translated_url, status) "
+        "VALUES(1, 'main', 'https://img/a.jpg', 'https://cdn/a.png', 'uploaded')")
     conn.commit()
 
     await handle_publish(ctx, {"product_id": 1})

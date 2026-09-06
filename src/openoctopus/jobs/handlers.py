@@ -111,8 +111,10 @@ async def handle_publish(ctx, payload: dict) -> None:
     t = {r["field"]: r["ru"] for r in conn.execute(
         "SELECT field, ru FROM translations WHERE product_id=?", (pid,))}
     main_urls = [r["translated_url"] or r["source_url"] for r in conn.execute(
-        "SELECT kind, translated_url, source_url FROM images WHERE product_id=? AND kind='main' ORDER BY id",
-        (pid,))]
+        "SELECT kind, translated_url, source_url FROM images "
+        "WHERE product_id=? AND kind='main' AND selected=1 ORDER BY id", (pid,))]
+    if not main_urls:
+        raise RuntimeError("没有选中上架图片，请在人审页至少勾选一张")
     price = conn.execute("SELECT price_rub FROM products WHERE id=?", (pid,)).fetchone()["price_rub"]
 
     items = build_import_payload(

@@ -171,9 +171,10 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                                            "mapping": mapping, "cats": cats})
 
     @app.post("/products/{pid}/edit")
-    def edit(pid: int, title_ru: str = Form(...), description_ru: str = Form(...),
-             price_rub: str = Form(""), ozon_category_id: str = Form(...),
-             attributes_json: str = Form("{}")):
+    async def edit(request: Request, pid: int, title_ru: str = Form(...),
+                   description_ru: str = Form(...),
+                   price_rub: str = Form(""), ozon_category_id: str = Form(...),
+                   attributes_json: str = Form("{}")):
         try:
             attrs = _json.loads(attributes_json)
         except _json.JSONDecodeError:
@@ -184,6 +185,14 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
             desc_id, type_id = raw_cat.split(":", 1)
         else:
             desc_id, type_id = raw_cat, ""
+        form = await request.form()
+        selected_ids = {k[4:] for k in form if k.startswith("sel_")}
+        conn = get_conn(ctx.db_path)
+        conn.execute("UPDATE images SET selected=0 WHERE product_id=?", (pid,))
+        for sid in selected_ids:
+            if sid.isdigit():
+                conn.execute("UPDATE images SET selected=1 WHERE id=? AND product_id=?",
+                             (int(sid), pid))
         if price_rub != "":
             try:
                 price_rub_val = float(price_rub)
@@ -191,7 +200,6 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                 return HTMLResponse("Invalid price_rub", status_code=400)
         else:
             price_rub_val = None
-        conn = get_conn(ctx.db_path)
         upsert_translation(conn, pid, "title", "", title_ru)
         upsert_translation(conn, pid, "description", "", description_ru)
         if price_rub_val is not None:
