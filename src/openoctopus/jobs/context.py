@@ -29,7 +29,8 @@ def build_context(settings: Settings) -> AppContext:
     ctx = AppContext(settings=settings, db_path=settings.db_path,
                      adapters=[A1688PlaywrightAdapter()])
     llm = AsyncOpenAI(base_url=settings.openrouter_base_url,
-                      api_key=settings.openrouter_api_key or "missing")
+                      api_key=settings.openrouter_api_key or "missing",
+                      timeout=120.0, max_retries=1)
     ctx.llm_client = llm
     ctx.content_translator = LLMContentTranslator(llm, settings.content_model)
     ctx.storage = make_r2(settings)
