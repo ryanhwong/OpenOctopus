@@ -7,13 +7,6 @@ from PIL import Image, ImageDraw, ImageFont
 from openoctopus.models import TextBox
 
 
-def _dominant_color(img: Image.Image, b: TextBox) -> tuple[int, int, int]:
-    region = np.array(img.crop((b.x, b.y, b.x + b.w, b.y + b.h))).reshape(-1, 3)
-    dark = region[region.sum(axis=1) < 380]
-    px = dark if len(dark) else region
-    return tuple(int(c) for c in px.mean(axis=0))
-
-
 def erase_boxes(img: Image.Image, boxes: list[TextBox]) -> Image.Image:
     arr = cv2.cvtColor(np.array(img.convert("RGB")), cv2.COLOR_RGB2BGR)
     mask = np.zeros(arr.shape[:2], np.uint8)
@@ -40,45 +33,55 @@ def _fit_font(
     return best or ImageFont.truetype(font_path, 8)
 
 
-def _render_box_text(
-    b: TextBox, fill: tuple[int, int, int], font_path: str
-) -> Image.Image:
-    layer = Image.new("RGB", (b.w, b.h))
+def _bg_color(img: Image.Image, b: TextBox, pad: int = 8) -> tuple[int, int, int]:
+    x0, y0 = max(0, b.x - pad), max(0, b.y - pad)
+    x1, y1 = min(img.width, b.x + b.w + pad), min(img.height, b.y + b.h)
+    region = np.array(img.crop((x0, y0, x1, y1))).reshape(-1, 3)
+    med = np.median(region, axis=0)
+    return tuple(int(c) for c in med)
+
+
+def _contrast_text_color(bg: tuple[int, int, int]) -> tuple[int, int, int]:
+    lum = 0.299 * bg[0] + 0.587 * bg[1] + 0.114 * bg[2]
+    return (30, 30, 30) if lum > 130 else (245, 245, 245)
+
+
+def _label_box(img: Image.Image, b: TextBox, pad_ratio: float = 0.25) -> tuple[int, int, int, int]:
+    pad_w, pad_h = int(b.w * pad_ratio), int(b.h * pad_ratio)
+    x0, y0 = max(0, b.x - pad_w), max(0, b.y - pad_h)
+    x1, y1 = min(img.width, b.x + b.w + pad_w), min(img.height, b.y + b.h + pad_h)
+    return x0, y0, x1, y1
+
+
+def _draw_label(img: Image.Image, b: TextBox, font_path: str) -> None:
+    """原地绘制：背景色标签（盖住原文残影）+ 对比色文字（蒙版合成防溢出）。"""
+    if not b.ru_text:
+        return
+    bg = _bg_color(img, b)
+    x0, y0, x1, y1 = _label_box(img, b)
+    ImageDraw.Draw(img).rectangle([x0, y0, x1, y1], fill=bg)
+    layer = Image.new("RGBA", (x1 - x0, y1 - y0), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
-    f = _fit_font(d, b.ru_text, b.w, b.h, font_path)
-    tw = int(d.textlength(b.ru_text, font=f))
+    f = _fit_font(d, b.ru_text, x1 - x0, y1 - y0, font_path)
+    tw = d.textlength(b.ru_text, font=f)
     asc, desc = f.getmetrics()
-    x = max(0, (b.w - tw) // 2)
-    y = max(0, (b.h - (asc + desc)) // 2)
-    d.text((x, y), b.ru_text, font=f, fill=fill)
-    return layer
-
-
-def _draw_translations(
-    img: Image.Image,
-    boxes: list[TextBox],
-    font_path: str,
-    colors: dict[int, tuple[int, int, int]],
-) -> Image.Image:
-    out = img.convert("RGB").copy()
-    for i, b in enumerate(boxes):
-        if not b.ru_text:
-            continue
-        out.paste(_render_box_text(b, colors[i], font_path), (b.x, b.y))
-    return out
+    d.text((max(0, (x1 - x0 - tw) // 2), max(0, (y1 - y0 - (asc + desc)) // 2)),
+           b.ru_text, font=f, fill=_contrast_text_color(bg) + (255,))
+    img.paste(layer, (x0, y0), layer)
 
 
 def draw_translations(img: Image.Image, boxes: list[TextBox], font_path: str) -> Image.Image:
-    colors = {i: _dominant_color(img, b) for i, b in enumerate(boxes)}
-    return _draw_translations(img, boxes, font_path, colors)
+    out = img.convert("RGB").copy()
+    for b in boxes:
+        _draw_label(out, b, font_path)
+    return out
 
 
 def translate_image_bytes(data: bytes, boxes: list[TextBox], font_path: str) -> bytes:
     with Image.open(io.BytesIO(data)) as src:
         img = src.convert("RGB")
-    colors = {i: _dominant_color(img, b) for i, b in enumerate(boxes)}
     erased = erase_boxes(img, boxes)
-    out = _draw_translations(erased, boxes, font_path, colors)
+    out = draw_translations(erased, boxes, font_path)
     buf = io.BytesIO()
     out.save(buf, "PNG")
     return buf.getvalue()
