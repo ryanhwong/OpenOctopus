@@ -58,6 +58,17 @@ def test_kanban_shows_groups(tmp_path):
     assert "待处理" in c.get("/").text
 
 
+def test_cors_preflight_allows_1688_extension(tmp_path):
+    c, _ = make_client(tmp_path)
+    r = c.options("/products/import-json", headers={
+        "Origin": "https://detail.1688.com",
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Private-Network": "true"})
+    assert r.status_code == 200
+    assert r.headers["access-control-allow-private-network"] == "true"
+    assert "POST" in r.headers["access-control-allow-methods"]
+
+
 def test_import_html(tmp_path):
     c, db_path = make_client(tmp_path)
     files = {"file": ("p.html", BytesIO(PAGE.encode()), "text/html")}

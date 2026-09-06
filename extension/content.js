@@ -77,7 +77,7 @@
       });
       const data = await r.json();
       if (data.ok) toast(`已采集 #${data.product_id}，去工作台查看`, true);
-      else toast(`失败：${data.error || r.status}`, false);
+      else toast(`失败(${r.status})：${data.error || r.status}`, false);
     } catch (e) {
       toast("连不上本地服务：先启动 OpenOctopus", false);
     }

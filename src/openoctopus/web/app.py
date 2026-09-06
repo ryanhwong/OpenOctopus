@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from openoctopus import login as login_mod
@@ -29,6 +29,21 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
     runner = JobRunner(get_conn(ctx.db_path), HANDLERS, ctx)
     app.state.login_session = None
     app.state.login_info = {"status": "idle", "logged_in": False, "checked_at": None}
+
+    @app.middleware("http")
+    async def _cors_pna(request: Request, call_next):
+        """允许 1688 页面跨域 POST 到本机：常规 CORS + Chrome 私网访问(PNA)头。"""
+        if request.method == "OPTIONS":
+            return Response(status_code=200, headers={
+                "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
+                "Access-Control-Allow-Private-Network": "true",
+                "Access-Control-Max-Age": "86400",
+            })
+        resp = await call_next(request)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        return resp
 
     def _login_snapshot():
         info = dict(app.state.login_info)
