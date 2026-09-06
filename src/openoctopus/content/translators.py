@@ -1,5 +1,6 @@
 import json
 
+from openoctopus.llm_json import parse_json
 from openoctopus.models import RawProduct, TranslatedContent
 
 SYSTEM_PROMPT = (
@@ -29,5 +30,5 @@ class LLMContentTranslator:
             response_format={"type": "json_object"},
             temperature=0.3,
         )
-        data = json.loads(resp.choices[0].message.content)
+        data = parse_json(resp.choices[0].message.content)
         return TranslatedContent(**data, model=self.model)

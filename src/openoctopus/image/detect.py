@@ -1,6 +1,6 @@
 import base64
-import json
 
+from openoctopus.llm_json import parse_json
 from openoctopus.models import TextBox
 
 DETECT_PROMPT = (
@@ -22,5 +22,5 @@ async def detect_and_translate(client, model: str, image_bytes: bytes) -> list[T
         response_format={"type": "json_object"},
         temperature=0.0,
     )
-    data = json.loads(resp.choices[0].message.content)
+    data = parse_json(resp.choices[0].message.content)
     return [TextBox(**b) for b in data.get("boxes", [])]

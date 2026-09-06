@@ -1,5 +1,7 @@
 import json
 
+from openoctopus.llm_json import parse_json
+
 PICK_PROMPT = (
     "Given a product description and candidate Ozon leaf types, pick the best one. "
     "Candidates are leaf types only; their ids look like "
@@ -21,7 +23,7 @@ async def pick_category(client, model, candidates, raw, translated) -> str:
         messages=[{"role": "system", "content": PICK_PROMPT},
                   {"role": "user", "content": user}],
         response_format={"type": "json_object"}, temperature=0.0)
-    return str(json.loads(resp.choices[0].message.content)["category_id"])
+    return str(parse_json(resp.choices[0].message.content)["category_id"])
 
 
 async def fill_attributes(client, model, schema_items, raw, translated) -> list[dict]:
@@ -34,4 +36,4 @@ async def fill_attributes(client, model, schema_items, raw, translated) -> list[
         messages=[{"role": "system", "content": ATTRS_PROMPT},
                   {"role": "user", "content": user}],
         response_format={"type": "json_object"}, temperature=0.0)
-    return json.loads(resp.choices[0].message.content)["attributes"]
+    return parse_json(resp.choices[0].message.content)["attributes"]

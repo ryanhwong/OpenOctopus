@@ -58,6 +58,18 @@ def test_kanban_shows_groups(tmp_path):
     assert "待处理" in c.get("/").text
 
 
+def test_delete_product_removes_all(tmp_path):
+    c, db_path = make_client(tmp_path)
+    files = {"file": ("p.html", BytesIO(PAGE.encode()), "text/html")}
+    c.post("/products/import-html", files=files)
+    assert c.post("/products/1/delete", follow_redirects=False).status_code == 303
+    conn = get_conn(db_path)
+    assert conn.execute("SELECT count(*) FROM products").fetchone()[0] == 0
+    assert conn.execute("SELECT count(*) FROM jobs").fetchone()[0] == 0
+    assert conn.execute("SELECT count(*) FROM source_snapshots").fetchone()[0] == 0
+    assert c.get("/products/1").status_code == 404
+
+
 def test_cors_preflight_allows_1688_extension(tmp_path):
     c, _ = make_client(tmp_path)
     r = c.options("/products/import-json", headers={

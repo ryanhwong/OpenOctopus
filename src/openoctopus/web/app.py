@@ -239,4 +239,15 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         conn.commit()
         return RedirectResponse("/", status_code=303)
 
+    @app.post("/products/{pid}/delete")
+    def delete_product(pid: int):
+        conn = get_conn(ctx.db_path)
+        for t in ("listings", "translations", "images", "category_mappings", "source_snapshots"):
+            conn.execute(f"DELETE FROM {t} WHERE product_id=?", (pid,))
+        conn.execute("DELETE FROM jobs WHERE payload_json LIKE ?",
+                     (f'%"product_id": {pid}%',))
+        conn.execute("DELETE FROM products WHERE id=?", (pid,))
+        conn.commit()
+        return RedirectResponse("/", status_code=303)
+
     return app

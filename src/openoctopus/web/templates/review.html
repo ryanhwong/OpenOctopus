@@ -75,6 +75,10 @@
   <form method="post" action="/products/{{ p['id'] }}/regenerate">
     <button class="btn btn-danger-ghost" type="submit">重新生成</button>
   </form>
+  <form method="post" action="/products/{{ p['id'] }}/delete"
+        onsubmit="return confirm('确定删除该商品及其全部数据？此操作不可恢复。')">
+    <button class="btn btn-ghost" type="submit">删除商品</button>
+  </form>
   <span class="muted">提交前请确认译文、价格、类目与必填属性无误</span>
 </div>
 {% endblock %}
