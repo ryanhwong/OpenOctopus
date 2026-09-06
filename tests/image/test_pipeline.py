@@ -108,3 +108,22 @@ def test_downscale_large_image():
 
 def test_downscale_invalid_bytes_passthrough():
     assert downscale_for_vlm(b"img") == (b"img", 1.0)
+
+
+def test_fit_boxes_normalized_rescaled():
+    from openoctopus.image.pipeline import _fit_boxes_to_image
+    from openoctopus.models import TextBox
+
+    boxes = [TextBox(x=900, y=100, w=50, h=50, zh_text="", ru_text="")]
+    out = _fit_boxes_to_image(boxes, 800, 800)
+    assert [(b.x, b.y, b.w, b.h) for b in out] == [(720, 80, 40, 40)]
+
+
+def test_fit_boxes_garbage_dropped():
+    from openoctopus.image.pipeline import _fit_boxes_to_image
+    from openoctopus.models import TextBox
+
+    boxes = [TextBox(x=5000, y=5000, w=10, h=10, zh_text="", ru_text=""),
+             TextBox(x=100, y=100, w=50, h=50, zh_text="", ru_text="")]
+    out = _fit_boxes_to_image(boxes, 800, 800)
+    assert [(b.x, b.y, b.w, b.h) for b in out] == [(100, 100, 50, 50)]
