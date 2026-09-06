@@ -53,12 +53,19 @@ async def handle_generate(ctx, payload: dict) -> None:
                        "\n".join(tc.bullets_ru), tc.model)
     upsert_translation(conn, pid, "description", raw.description_zh, tc.description_ru, tc.model)
 
+    conn.commit()  # 先落盘文案，下面逐张提交，单图失败不挡整单
     for row in conn.execute("SELECT id, kind, source_url FROM images "
                             "WHERE product_id=? AND status='pending'", (pid,)).fetchall():
         key_hint = f"products/{pid}/{row['kind']}-{row['id']}"
-        url = await ctx.image_translator.translate(row["source_url"], key_hint)
-        conn.execute("UPDATE images SET translated_url=?, status='uploaded' WHERE id=?",
-                     (url, row["id"]))
+        try:
+            url = await ctx.image_translator.translate(row["source_url"], key_hint)
+        except Exception as e:  # noqa: BLE001
+            conn.execute("UPDATE images SET status='failed', meta_json=? WHERE id=?",
+                         (json.dumps({"error": str(e)[:200]}, ensure_ascii=False), row["id"]))
+        else:
+            conn.execute("UPDATE images SET translated_url=?, status='uploaded' WHERE id=?",
+                         (url, row["id"]))
+        conn.commit()
 
     if s.live_mode and conn.execute(
             "SELECT count(*) FROM ozon_categories").fetchone()[0] == 0:

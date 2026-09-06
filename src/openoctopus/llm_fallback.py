@@ -17,7 +17,7 @@ class _Completions:
         try:
             return await self._primary.create(model=self._primary_model, **kwargs)
         except Exception as e:  # noqa: BLE001
-            print(f"[llm] primary failed ({type(e).__name__}), falling back")
+            print(f"[llm] primary failed ({type(e).__name__}), falling back", flush=True)
             return await self._fallback.create(model=self._fallback_model, **kwargs)
 
 

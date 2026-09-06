@@ -1,6 +1,6 @@
 import json
 
-from openoctopus.image.pipeline import VlmPipelineTranslator
+from openoctopus.image.pipeline import VlmPipelineTranslator, downscale_for_vlm
 
 
 class FakeVisionCompletions:
@@ -91,3 +91,20 @@ async def test_translate_happy_path_returns_public_url_and_put_called():
     assert key.startswith("hint-")
     assert key.endswith(".png")
     assert data == b"rendered-bytes"
+
+
+def test_downscale_large_image():
+    import io
+
+    from PIL import Image
+
+    img = Image.new("RGB", (2000, 1000), (255, 0, 0))
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    small, scale = downscale_for_vlm(buf.getvalue())
+    assert scale == 1024 / 2000
+    assert max(Image.open(io.BytesIO(small)).size) == 1024
+
+
+def test_downscale_invalid_bytes_passthrough():
+    assert downscale_for_vlm(b"img") == (b"img", 1.0)
