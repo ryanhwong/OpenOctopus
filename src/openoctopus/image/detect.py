@@ -12,6 +12,7 @@ DETECT_PROMPT = (
     '(prices as "Цена: <число> юаней"). '
     "For NON-Chinese text (English logos etc.), set ru_text to empty string — "
     "it will be erased and not redrawn. Be exhaustive, include small text. "
+    "Sweep all four corners and image edges for small logos - these are most often missed. "
     'Respond strict JSON: {"boxes": [...]}'
 )
 
