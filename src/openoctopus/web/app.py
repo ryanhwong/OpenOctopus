@@ -25,8 +25,12 @@ STATUS_GROUPS = [("new", "待处理"), ("collected", "已采集"), ("generating"
 
 def create_app(ctx, run_worker: bool = True) -> FastAPI:
     init_db(ctx.db_path)
+    conn = get_conn(ctx.db_path)
+    # 认领僵尸任务：上次进程死时停在 running 的 job 永远不会被认领
+    conn.execute("UPDATE jobs SET status='queued', error=NULL WHERE status='running'")
+    conn.commit()
     app = FastAPI()
-    runner = JobRunner(get_conn(ctx.db_path), HANDLERS, ctx)
+    runner = JobRunner(conn, HANDLERS, ctx)
     app.state.login_session = None
     app.state.login_info = {"status": "idle", "logged_in": False, "checked_at": None}
 

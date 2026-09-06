@@ -58,6 +58,17 @@ def test_kanban_shows_groups(tmp_path):
     assert "待处理" in c.get("/").text
 
 
+def test_startup_reaps_stale_running_jobs(tmp_path):
+    db_path = str(tmp_path / "r.db")
+    init_db(db_path)
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO jobs(type, payload_json, status) VALUES('generate', '{}', 'running')")
+    conn.commit()
+    ctx = SimpleNamespace(settings=Settings(_env_file=None), db_path=db_path)
+    create_app(ctx, run_worker=False)
+    assert conn.execute("SELECT status FROM jobs").fetchone()["status"] == "queued"
+
+
 def test_delete_product_removes_all(tmp_path):
     c, db_path = make_client(tmp_path)
     files = {"file": ("p.html", BytesIO(PAGE.encode()), "text/html")}
