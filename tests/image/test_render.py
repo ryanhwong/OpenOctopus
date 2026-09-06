@@ -94,3 +94,23 @@ def test_label_background_matches_surroundings_not_black():
     out = draw_translations(base.copy(), [box], FONT_PATH)
     assert sum(out.getpixel((30, 34))) > 450
     assert_outside_label_unchanged(base, out, box)
+
+
+def test_cluster_merges_overlapping_boxes():
+    from openoctopus.image.render import _cluster_boxes
+
+    base = Image.new("RGB", (300, 100), (240, 240, 240))
+    boxes = [TextBox(x=20, y=30, w=60, h=20, zh_text="a", ru_text="A"),
+             TextBox(x=70, y=30, w=60, h=20, zh_text="b", ru_text="B"),
+             TextBox(x=220, y=30, w=60, h=20, zh_text="c", ru_text="C")]
+    clusters = _cluster_boxes(base, boxes)
+    assert sorted(len(c) for c in clusters) == [1, 2]
+
+
+def test_panel_wraps_long_text():
+    base = Image.new("RGB", (300, 200), (240, 240, 240))
+    box = TextBox(x=150, y=60, w=80, h=60, zh_text="长",
+                  ru_text="Очень длинный русский текст который должен перенестись")
+    out = draw_translations(base.copy(), [box], FONT_PATH)
+    assert_outside_label_unchanged(base, out, box)
+    assert np.array(out).mean() < np.array(base).mean()

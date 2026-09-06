@@ -18,22 +18,6 @@ def erase_boxes(img: Image.Image, boxes: list[TextBox]) -> Image.Image:
     return Image.fromarray(cv2.cvtColor(arr, cv2.COLOR_BGR2RGB))
 
 
-def _fit_font(
-    draw: ImageDraw.ImageDraw, text: str, box_w: int, box_h: int, font_path: str
-) -> ImageFont.FreeTypeFont:
-    lo, hi = 8, max(8, box_h)
-    best = None
-    while lo <= hi:
-        mid = (lo + hi) // 2
-        f = ImageFont.truetype(font_path, mid)
-        if draw.textlength(text, font=f) <= box_w and sum(f.getmetrics()) <= box_h:
-            best = f
-            lo = mid + 1
-        else:
-            hi = mid - 1
-    return best or ImageFont.truetype(font_path, 8)
-
-
 def _bg_color(img: Image.Image, b: TextBox, pad: int = 8) -> tuple[int, int, int]:
     x0, y0 = max(0, b.x - pad), max(0, b.y - pad)
     x1, y1 = min(img.width, b.x + b.w + pad), min(img.height, b.y + b.h)
@@ -54,32 +38,100 @@ def _label_box(img: Image.Image, b: TextBox, pad_ratio: float = 0.25) -> tuple[i
     return x0, y0, x1, y1
 
 
-def _draw_label(img: Image.Image, b: TextBox, font_path: str) -> None:
-    """原地绘制：背景色标签 + 对比色文字，边缘羽化融入照片。"""
-    if not b.ru_text:
+def _rects_overlap(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> bool:
+    return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+
+
+def _cluster_boxes(img: Image.Image, boxes: list[TextBox]) -> list[list[TextBox]]:
+    """外扩矩形相交的框并成一簇，共用一块排版面板。"""
+    rects = [_label_box(img, b) for b in boxes]
+    parent = list(range(len(boxes)))
+
+    def find(a: int) -> int:
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    for i in range(len(boxes)):
+        for j in range(i + 1, len(boxes)):
+            if _rects_overlap(rects[i], rects[j]):
+                parent[find(i)] = find(j)
+    groups: dict[int, list[TextBox]] = {}
+    for i, b in enumerate(boxes):
+        groups.setdefault(find(i), []).append(b)
+    return list(groups.values())
+
+
+def _union_rect(img: Image.Image, cluster: list[TextBox]) -> tuple[int, int, int, int]:
+    x0 = max(0, min(_label_box(img, b)[0] for b in cluster))
+    y0 = max(0, min(_label_box(img, b)[1] for b in cluster))
+    x1 = min(img.width, max(_label_box(img, b)[2] for b in cluster))
+    y1 = min(img.height, max(_label_box(img, b)[3] for b in cluster))
+    return x0, y0, x1, y1
+
+
+def _wrap_lines(draw: ImageDraw.ImageDraw, text: str, font, max_w: int) -> list[str]:
+    lines: list[str] = []
+    for para in text.split("\n"):
+        cur = ""
+        for word in para.split():
+            cand = (cur + " " + word).strip()
+            if not cur or draw.textlength(cand, font=font) <= max_w:
+                cur = cand
+            else:
+                lines.append(cur)
+                cur = word
+        if cur:
+            lines.append(cur)
+    return lines or [""]
+
+
+def _draw_panel(img: Image.Image, cluster: list[TextBox], font_path: str) -> None:
+    """一簇文字共用一块面板：背景取色 + 自动换行排版 + 羽化边缘。无译文的簇只擦不画。"""
+    texts = [b.ru_text for b in cluster if b.ru_text]
+    if not texts:
         return
-    bg = _bg_color(img, b)
-    x0, y0, x1, y1 = _label_box(img, b)
+    bg = _bg_color(img, cluster[0])
+    x0, y0, x1, y1 = _union_rect(img, cluster)
     w, h = x1 - x0, y1 - y0
     if w <= 0 or h <= 0:
         return
-    label = Image.new("RGB", (w, h), bg)
-    d = ImageDraw.Draw(label)
-    f = _fit_font(d, b.ru_text, w, h, font_path)
-    tw = d.textlength(b.ru_text, font=f)
+    fg = _contrast_text_color(bg)
+    size = max(8, h // max(1, len(texts) * 2))
+    lines: list[str] = []
+    while size >= 8:
+        f = ImageFont.truetype(font_path, size)
+        probe = ImageDraw.Draw(Image.new("RGB", (8, 8)))
+        lines = []
+        for t in texts:
+            lines.extend(_wrap_lines(probe, t, f, w - 8))
+        asc, desc = f.getmetrics()
+        if len(lines) * (asc + desc + 2) <= h:
+            break
+        size -= 1
+    else:
+        return
+    panel = Image.new("RGB", (w, h), bg)
+    d = ImageDraw.Draw(panel)
     asc, desc = f.getmetrics()
-    d.text((max(0, (w - tw) // 2), max(0, (h - (asc + desc)) // 2)),
-           b.ru_text, font=f, fill=_contrast_text_color(bg))
+    lh = asc + desc + 2
+    total = len(lines) * lh
+    y = max(0, (h - total) // 2)
+    for line in lines:
+        tw = d.textlength(line, font=f)
+        d.text((max(0, (w - tw) // 2), y), line, font=f, fill=fg)
+        y += lh
     mask = Image.new("L", (w, h), 0)
     ImageDraw.Draw(mask).rectangle([0, 0, w - 1, h - 1], fill=255)
     mask = mask.filter(ImageFilter.GaussianBlur(radius=max(2, min(w, h) // 10)))
-    img.paste(label, (x0, y0), mask)
+    img.paste(panel, (x0, y0), mask)
 
 
 def draw_translations(img: Image.Image, boxes: list[TextBox], font_path: str) -> Image.Image:
     out = img.convert("RGB").copy()
-    for b in boxes:
-        _draw_label(out, b, font_path)
+    for cluster in _cluster_boxes(out, boxes):
+        _draw_panel(out, cluster, font_path)
     return out
 
 
