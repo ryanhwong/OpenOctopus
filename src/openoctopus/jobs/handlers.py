@@ -58,8 +58,6 @@ async def handle_generate(ctx, payload: dict) -> None:
     translations: dict[str, str] = {}
     if raw.title_zh:
         translations[raw.title_zh] = tc.title_ru
-    if tc.bullets_ru:
-        translations[raw.title_zh] = tc.title_ru
     for b_zh, b_ru in zip(raw.bullets_zh, tc.bullets_ru):
         translations[b_zh] = b_ru
     if raw.description_zh:
