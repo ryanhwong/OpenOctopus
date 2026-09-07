@@ -1,4 +1,3 @@
-import json
 
 import httpx
 
@@ -35,9 +34,12 @@ class FakeVLM:
 
 
 async def test_no_translations_returns_original():
+    def noop(req):
+        return httpx.Response(200, content=b"img")
+    http = httpx.AsyncClient(transport=httpx.MockTransport(noop))
     storage = FakeStorage()
     vlm = FakeVLM()
-    ad = JimengEditAdapter(httpx.AsyncClient(), "sess", "http://x",
+    ad = JimengEditAdapter(http, "sess", "http://x",
                            "jimeng-4.0", storage, fallback_translator=vlm)
     out = await ad.translate("https://img/a.jpg", "hint")
     assert out == "https://img/a.jpg"

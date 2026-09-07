@@ -8,7 +8,6 @@ sidecar 的 img2img 路径没有正确把 uploadedImageIds 绑到 blend 能力�
 import asyncio
 import hashlib
 import json
-import re
 import uuid
 
 import httpx
@@ -58,7 +57,7 @@ class JimengEditAdapter:
             img.raise_for_status()
             key = f"{key_hint}-jimeng-{hashlib.sha1(image_url.encode()).hexdigest()[:10]}.png"
             return self.storage.put(key, img.content)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             if self.fallback_translator is None:
                 raise
             print(f"[jimeng] failed ({type(e).__name__}): {e}", flush=True)
