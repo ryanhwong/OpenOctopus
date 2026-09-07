@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     image_backend: str = "vlm"
     jimeng_session_id: str = ""
     jimeng_base_url: str = "http://127.0.0.1:5100"
-    jimeng_model: str = "jimeng-4.5"
+    jimeng_model: str = "jimeng-4.0"
 
     r2_endpoint: str = ""
     r2_bucket: str = ""
