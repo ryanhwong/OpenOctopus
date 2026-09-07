@@ -68,26 +68,30 @@ class JimengEditAdapter:
         self.fallback_translator = fallback_translator
         self.ratio = ratio
 
-    async def translate(self, image_url: str, key_hint: str, **kwargs) -> str:
+    async def translate(self, image_url: str, key_hint: str, prompt_override: str | None = None,
+                        **kwargs) -> str:
         try:
             # download source
             r = await self.http.get(image_url, timeout=60)
             r.raise_for_status()
             data = r.content
 
-            # VLM 读图：图里实际有哪些中文/品牌文字（含翻译）
-            small, _ = downscale_for_vlm(data)
-            boxes = await detect_and_translate(self.llm_client, self.llm_model, small)
-            if not boxes:
-                return image_url  # 图里没有文字，原样返回
+            if prompt_override:
+                prompt = prompt_override
+            else:
+                # VLM 读图：图里实际有哪些中文/品牌文字（含翻译）
+                small, _ = downscale_for_vlm(data)
+                boxes = await detect_and_translate(self.llm_client, self.llm_model, small)
+                if not boxes:
+                    return image_url  # 图里没有文字，原样返回
 
-            # 只处理图里真有的文字
-            translations = {b.zh_text: b.ru_text for b in boxes if b.ru_text and b.zh_text}
-            logos = [b.zh_text for b in boxes if not b.ru_text and b.zh_text]
-            if not translations and not logos:
-                return image_url  # 全是空文本，不处理
+                # 只处理图里真有的文字
+                translations = {b.zh_text: b.ru_text for b in boxes if b.ru_text and b.zh_text}
+                logos = [b.zh_text for b in boxes if not b.ru_text and b.zh_text]
+                if not translations and not logos:
+                    return image_url  # 全是空文本，不处理
 
-            prompt = build_edit_prompt(translations or None, logos or None)
+                prompt = build_edit_prompt(translations or None, logos or None)
 
             with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
                 f.write(data)

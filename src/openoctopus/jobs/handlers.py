@@ -175,4 +175,32 @@ def collect_from_html(ctx, file_bytes: bytes, filename: str) -> int:
     return persist_raw_product(conn, rp)
 
 
-HANDLERS = {"collect": handle_collect, "generate": handle_generate, "publish": handle_publish}
+async def handle_regenerate_image(ctx, payload: dict) -> None:
+    from openoctopus.db import get_conn
+
+    conn = get_conn(ctx.db_path)
+    img_id = payload["image_id"]
+    img = conn.execute("SELECT * FROM images WHERE id=?", (img_id,)).fetchone()
+    if img is None:
+        return
+    key_hint = f"products/{img['product_id']}/{img['kind']}-{img_id}"
+    conn.execute("UPDATE images SET status='pending', translated_url=NULL, meta_json='{}' "
+                 "WHERE id=?", (img_id,))
+    conn.execute("UPDATE products SET status='generating' WHERE id=?", (img['product_id'],))
+    conn.commit()
+    try:
+        url = await ctx.image_translator.translate(
+            img["source_url"], key_hint,
+            prompt_override=payload.get("prompt_override") or None)
+    except Exception as e:  # noqa: BLE001
+        conn.execute("UPDATE images SET status='failed', meta_json=? WHERE id=?",
+                     (json.dumps({"error": str(e)[:200]}, ensure_ascii=False), img_id))
+    else:
+        conn.execute("UPDATE images SET translated_url=?, status='uploaded' WHERE id=?",
+                     (url, img_id))
+    conn.execute("UPDATE products SET status='review' WHERE id=?", (img['product_id'],))
+    conn.commit()
+
+
+HANDLERS = {"collect": handle_collect, "generate": handle_generate, "publish": handle_publish,
+            "regenerate_image": handle_regenerate_image}

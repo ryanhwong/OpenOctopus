@@ -133,6 +133,23 @@ def test_edit_toggles_image_selected(tmp_path):
     assert conn.execute("SELECT selected FROM images WHERE id=1").fetchone()["selected"] == 0
 
 
+def test_regenerate_single_image_enqueues_job(tmp_path):
+    c, db_path = make_client(tmp_path)
+    files = {"file": ("p.html", BytesIO(PAGE.encode()), "text/html")}
+    c.post("/products/import-html", files=files)
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO images(product_id, kind, source_url, translated_url, status) "
+                 "VALUES(1, 'main', 'https://img/a.jpg', 'https://r2/a.png', 'uploaded')")
+    conn.commit()
+    r = c.post("/products/1/images/1/regenerate", data={"prompt_override": "只去logo"},
+               follow_redirects=False)
+    assert r.status_code == 303
+    job = conn.execute("SELECT type, payload_json FROM jobs WHERE type='regenerate_image'").fetchone()
+    assert job is not None
+    import json as _j
+    assert _j.loads(job[1]) == {"product_id": 1, "image_id": 1, "prompt_override": "只去logo"}
+
+
 def test_edit_invalid_attributes_returns_400(tmp_path):
     c, _ = make_client(tmp_path)
     files = {"file": ("p.html", BytesIO(PAGE.encode()), "text/html")}

@@ -67,6 +67,13 @@
                {% if img['selected'] %}checked{% endif %} style="width:auto">
         用于上架
       </label>
+      <form method="post" action="/products/{{ p['id'] }}/images/{{ img['id'] }}/regenerate"
+            style="margin-top:6px;display:flex;gap:6px;align-items:center">
+        <input type="text" name="prompt_override" style="margin:0;flex:1;font-size:12px"
+               placeholder="留空=自动读图翻译；可写自定义指令，如：只去掉左上角logo，其他不动">
+        <button class="btn btn-ghost" type="submit"
+                style="min-height:32px;padding:2px 12px;white-space:nowrap">单张重生成</button>
+      </form>
       {% endfor %}
       {% if not images %}<p class="muted">暂无图片</p>{% endif %}
     </section>

@@ -244,6 +244,17 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         enqueue(conn, "generate", {"product_id": pid})
         return RedirectResponse(f"/products/{pid}", status_code=303)
 
+    @app.post("/products/{pid}/images/{imgid}/regenerate")
+    def regenerate_image(pid: int, imgid: int, prompt_override: str = Form("")):
+        conn = get_conn(ctx.db_path)
+        img = conn.execute("SELECT * FROM images WHERE id=? AND product_id=?",
+                           (imgid, pid)).fetchone()
+        if img is None:
+            raise HTTPException(status_code=404, detail="Image not found")
+        enqueue(conn, "regenerate_image", {"product_id": pid, "image_id": imgid,
+                                            "prompt_override": prompt_override.strip()})
+        return RedirectResponse(f"/products/{pid}", status_code=303)
+
     @app.post("/jobs/{jid}/retry")
     def retry(jid: int):
         conn = get_conn(ctx.db_path)
