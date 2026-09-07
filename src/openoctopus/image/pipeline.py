@@ -76,7 +76,7 @@ class VlmPipelineTranslator:
         self.http = http or httpx.AsyncClient(timeout=60)
         self.render = render or translate_image_bytes
 
-    async def translate(self, image_url: str, key_hint: str) -> str:
+    async def translate(self, image_url: str, key_hint: str, **kwargs) -> str:
         r = await self.http.get(image_url)
         r.raise_for_status()
         data = r.content

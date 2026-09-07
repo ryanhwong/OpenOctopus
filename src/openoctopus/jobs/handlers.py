@@ -54,11 +54,23 @@ async def handle_generate(ctx, payload: dict) -> None:
     upsert_translation(conn, pid, "description", raw.description_zh, tc.description_ru, tc.model)
 
     conn.commit()  # 先落盘文案，下面逐张提交，单图失败不挡整单
+    from openoctopus.image.jimeng import JimengEditAdapter
+    translations: dict[str, str] = {}
+    if raw.title_zh:
+        translations[raw.title_zh] = tc.title_ru
+    if tc.bullets_ru:
+        translations[raw.title_zh] = tc.title_ru
+    for b_zh, b_ru in zip(raw.bullets_zh, tc.bullets_ru):
+        translations[b_zh] = b_ru
+    if raw.description_zh:
+        translations[raw.description_zh] = tc.description_ru
+    logos = ["CLOUDHIS", "BY"] if isinstance(ctx.image_translator, JimengEditAdapter) else []
     for row in conn.execute("SELECT id, kind, source_url FROM images "
                             "WHERE product_id=? AND status='pending'", (pid,)).fetchall():
         key_hint = f"products/{pid}/{row['kind']}-{row['id']}"
         try:
-            url = await ctx.image_translator.translate(row["source_url"], key_hint)
+            url = await ctx.image_translator.translate(row["source_url"], key_hint,
+                                                       translations=translations, logos=logos)
         except Exception as e:  # noqa: BLE001
             conn.execute("UPDATE images SET status='failed', meta_json=? WHERE id=?",
                          (json.dumps({"error": str(e)[:200]}, ensure_ascii=False), row["id"]))

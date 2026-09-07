@@ -1,66 +1,53 @@
-"""即梦图生图适配器：VLM 检测拿译文 -> sidecar 重绘 -> R2 托管。
-
-失败时回落到 VLM 管线，保证单图永不阻塞整单。
-"""
+"""即梦图生图：简单直传 prompt，不依赖 VLM 检测。"""
 
 import hashlib
 
 import httpx
 
-from openoctopus.image.detect import detect_and_translate
-from openoctopus.image.pipeline import downscale_for_vlm
 
-
-def build_edit_prompt(boxes) -> str:
-    repl = [f"{b.zh_text}->{b.ru_text}" for b in boxes if b.ru_text]
-    rem = [b.zh_text for b in boxes if not b.ru_text and b.zh_text]
+def build_edit_prompt(translations: dict[str, str] | None = None,
+                      logos: list[str] | None = None) -> str:
     parts = [("Edit this e-commerce product photo. "
               "Keep the product, hands, background, colors and composition exactly the same.")]
-    if repl:
+    if translations:
+        repl = [f"{zh}->{ru}" for zh, ru in translations.items()]
         parts.append("Replace text with Russian: " + "; ".join(repl))
-    if rem:
-        parts.append("Completely remove these texts and fill with surrounding background: "
-                     + "; ".join(rem))
+    if logos:
+        parts.append("Completely remove these brand texts and fill with surrounding background: "
+                     + "; ".join(logos))
     return " ".join(parts)
 
 
 class JimengEditAdapter:
     def __init__(self, http: httpx.AsyncClient, session_id: str, base_url: str,
-                 model: str, llm_client, llm_model: str, storage,
-                 fallback_translator=None):
+                 model: str, storage, fallback_translator=None):
         self.http = http
         self.session_id = session_id
         self.base_url = base_url.rstrip("/")
         self.model = model
-        self.llm_client = llm_client
-        self.llm_model = llm_model
         self.storage = storage
         self.fallback_translator = fallback_translator
 
-    async def translate(self, image_url: str, key_hint: str) -> str:
+    async def translate(self, image_url: str, key_hint: str,
+                        translations: dict[str, str] | None = None,
+                        logos: list[str] | None = None) -> str:
         try:
-            return await self._translate(image_url, key_hint)
+            prompt = build_edit_prompt(translations, logos)
+            if not prompt or not translations and not logos:
+                return image_url
+            out_url = await self._generate(image_url, prompt)
+            if self.storage is None:
+                return out_url
+            img = await self.http.get(out_url, timeout=120)
+            img.raise_for_status()
+            key = f"{key_hint}-jimeng-{hashlib.sha1(image_url.encode()).hexdigest()[:10]}.png"
+            return self.storage.put(key, img.content)
         except Exception as e:
             if self.fallback_translator is None:
                 raise
             print(f"[jimeng] failed ({type(e).__name__}), falling back to VLM pipeline",
                   flush=True)
             return await self.fallback_translator.translate(image_url, key_hint)
-
-    async def _translate(self, image_url: str, key_hint: str) -> str:
-        r = await self.http.get(image_url, timeout=60)
-        r.raise_for_status()
-        small, _ = downscale_for_vlm(r.content)
-        boxes = await detect_and_translate(self.llm_client, self.llm_model, small)
-        if not boxes:
-            return image_url
-        out_url = await self._generate(image_url, build_edit_prompt(boxes))
-        if self.storage is None:
-            return out_url
-        img = await self.http.get(out_url, timeout=120)
-        img.raise_for_status()
-        key = f"{key_hint}-jimeng-{hashlib.sha1(image_url.encode()).hexdigest()[:10]}.png"
-        return self.storage.put(key, img.content)
 
     async def _generate(self, image_url: str, prompt: str) -> str:
         r = await self.http.post(
