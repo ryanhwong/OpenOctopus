@@ -1,16 +1,20 @@
 """即梦官方 CLI 图生图 adapter。
 
-用即梦官方 CLI 的 `image2image` 命令（真正的图生图编辑，保留商品主体，
-只改文字区——旧 sidecar 是 92-97% 重绘，CLI 只有 5%）。
+每张图独立处理：
+1. VLM 读取图里实际有哪些中文/品牌文字（detect_and_translate）
+2. 只把「图里真有的中文 -> 对应俄语」写进 prompt 让即梦重绘
+3. 图里没有文字/logo -> 原样返回，不调即梦（不硬搬标题翻译）
 """
 
 import asyncio
 import hashlib
-import json
 import os
 import tempfile
 
 import httpx
+
+from openoctopus.image.detect import detect_and_translate
+from openoctopus.image.pipeline import downscale_for_vlm
 
 CLI_PATH = os.path.expanduser("~/.dreamina_cli/dreamina")
 
@@ -30,6 +34,8 @@ def build_edit_prompt(translations: dict[str, str] | None = None,
 
 async def _run_cli(args: list[str], timeout: int = 180) -> dict:
     """运行 dreamina CLI，返回解析后的 JSON。"""
+    import json
+
     env = {k: v for k, v in os.environ.items()
            if not k.upper().endswith("_PROXY") and k.lower() != "all_proxy"}
     proc = await asyncio.create_subprocess_exec(
@@ -51,32 +57,46 @@ async def _run_cli(args: list[str], timeout: int = 180) -> dict:
 
 
 class JimengEditAdapter:
-    def __init__(self, http: httpx.AsyncClient, storage, model: str = "4.0",
-                 fallback_translator=None, ratio: str = "1:1"):
+    def __init__(self, http: httpx.AsyncClient, llm_client, llm_model: str,
+                 storage, model: str = "4.0", fallback_translator=None,
+                 ratio: str = "1:1"):
         self.http = http
+        self.llm_client = llm_client
+        self.llm_model = llm_model
         self.storage = storage
         self.model = model
         self.fallback_translator = fallback_translator
         self.ratio = ratio
 
-    async def translate(self, image_url: str, key_hint: str,
-                        translations: dict[str, str] | None = None,
-                        logos: list[str] | None = None) -> str:
+    async def translate(self, image_url: str, key_hint: str, **kwargs) -> str:
         try:
-            prompt = build_edit_prompt(translations, logos)
-            if not prompt or (not translations and not logos):
-                return image_url
-            # download source to temp file (CLI needs local path)
+            # download source
             r = await self.http.get(image_url, timeout=60)
             r.raise_for_status()
+            data = r.content
+
+            # VLM 读图：图里实际有哪些中文/品牌文字（含翻译）
+            small, _ = downscale_for_vlm(data)
+            boxes = await detect_and_translate(self.llm_client, self.llm_model, small)
+            if not boxes:
+                return image_url  # 图里没有文字，原样返回
+
+            # 只处理图里真有的文字
+            translations = {b.zh_text: b.ru_text for b in boxes if b.ru_text and b.zh_text}
+            logos = [b.zh_text for b in boxes if not b.ru_text and b.zh_text]
+            if not translations and not logos:
+                return image_url  # 全是空文本，不处理
+
+            prompt = build_edit_prompt(translations or None, logos or None)
+
             with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
-                f.write(r.content)
+                f.write(data)
                 local_path = f.name
             try:
                 out_url = await self._generate(local_path, prompt)
             finally:
                 os.unlink(local_path)
-            # download result to R2
+
             if self.storage is None:
                 return out_url
             img = await self.http.get(out_url, timeout=120)

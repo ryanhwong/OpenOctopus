@@ -49,6 +49,9 @@ def build_context(settings: Settings) -> AppContext:
 
         ctx.image_translator = JimengEditAdapter(
             http=httpx.AsyncClient(timeout=320),
+            llm_client=FallbackChatClient(primary, settings.image_model,
+                                          fallback, settings.fallback_image_model),
+            llm_model=settings.image_model,
             storage=ctx.storage,
             model=settings.jimeng_model,
             fallback_translator=vlm)
