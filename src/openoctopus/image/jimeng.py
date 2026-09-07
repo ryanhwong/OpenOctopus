@@ -92,6 +92,7 @@ class JimengEditAdapter:
         resp.raise_for_status()
         token_data = resp.json().get("data", {})
         service_id = token_data.get("service_id", "")
+        _ = service_id
         token = token_data.get("token", "")
         upload_url = token_data.get("upload_url", "")
 
@@ -118,7 +119,6 @@ class JimengEditAdapter:
 
         # step A: build blend ability list (sidecar 这步是空的，这里正确组装)
         ability_id = str(uuid.uuid4())
-        generate_id = str(uuid.uuid4())
         ability_list = [{
             "abilityName": "byte_edit",
             "strength": 0.5,
@@ -153,14 +153,7 @@ class JimengEditAdapter:
             "seed": _random_seed(),
         }
 
-        # step D: blend ability list for prompt placeholders
-        blend_ability = [{
-            "type": "", "id": str(uuid.uuid4()),
-            "abilityName": "byte_edit",
-            "strength": 0.5,
-            "upload_image_ids": [{"id": image_id}],
-            "source": {"imageUrl": f"blob:https://jimeng.jianying.com/{uuid.uuid4()}"},
-        }]
+        # step D: blend ability list (sidecar 的 buildBlendAbilityList 是空的——这是 bug 的根源，ability_list 在 step A 已正确组装)
 
         # step E: draft content
         component_id = str(uuid.uuid4())
