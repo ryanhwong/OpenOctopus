@@ -39,11 +39,26 @@ def build_context(settings: Settings) -> AppContext:
                                         fallback, settings.fallback_content_model)
     ctx.content_translator = LLMContentTranslator(ctx.llm_client, settings.content_model)
     ctx.storage = make_r2(settings)
-    ctx.image_translator = VlmPipelineTranslator(
+    vlm = VlmPipelineTranslator(
         FallbackChatClient(primary, settings.image_model,
                            fallback, settings.fallback_image_model),
         settings.image_model, ctx.storage, settings.font_path,
         httpx.AsyncClient(timeout=60))
+    if (settings.image_backend or "vlm").lower() == "jimeng":
+        from openoctopus.image.jimeng import JimengEditAdapter
+
+        ctx.image_translator = JimengEditAdapter(
+            http=httpx.AsyncClient(timeout=320),
+            session_id=settings.jimeng_session_id,
+            base_url=settings.jimeng_base_url,
+            model=settings.jimeng_model,
+            llm_client=FallbackChatClient(primary, settings.image_model,
+                                          fallback, settings.fallback_image_model),
+            llm_model=settings.image_model,
+            storage=ctx.storage,
+            fallback_translator=vlm)
+    else:
+        ctx.image_translator = vlm
     ctx.ozon = OzonClient(httpx.AsyncClient(base_url=BASE_URL, timeout=60),
                           settings.ozon_client_id, settings.ozon_api_key)
     return ctx
