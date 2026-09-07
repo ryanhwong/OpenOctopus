@@ -52,9 +52,6 @@ def build_context(settings: Settings) -> AppContext:
             session_id=settings.jimeng_session_id,
             base_url=settings.jimeng_base_url,
             model=settings.jimeng_model,
-            llm_client=FallbackChatClient(primary, settings.image_model,
-                                          fallback, settings.fallback_image_model),
-            llm_model=settings.image_model,
             storage=ctx.storage,
             fallback_translator=vlm)
     else:
