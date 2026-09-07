@@ -1,16 +1,18 @@
-"""即梦 4.0 图生图 adapter：绕过 sidecar broken img2img，直连内部 API。
+"""即梦官方 CLI 图生图 adapter。
 
-sidecar 的 img2img 路径没有正确把 uploadedImageIds 绑到 blend 能力列表
-（abilityList 为空），导致即梦把我们的参考图当文字生图处理。
-本模块直接组装正确的 blend 能力 + prompt placeholder，确保即梦基于原图编辑。
+用即梦官方 CLI 的 `image2image` 命令（真正的图生图编辑，保留商品主体，
+只改文字区——旧 sidecar 是 92-97% 重绘，CLI 只有 5%）。
 """
 
 import asyncio
 import hashlib
 import json
-import uuid
+import os
+import tempfile
 
 import httpx
+
+CLI_PATH = os.path.expanduser("~/.dreamina_cli/dreamina")
 
 
 def build_edit_prompt(translations: dict[str, str] | None = None,
@@ -26,18 +28,36 @@ def build_edit_prompt(translations: dict[str, str] | None = None,
     return " ".join(parts)
 
 
+async def _run_cli(args: list[str], timeout: int = 180) -> dict:
+    """运行 dreamina CLI，返回解析后的 JSON。"""
+    env = {k: v for k, v in os.environ.items()
+           if not k.upper().endswith("_PROXY") and k.lower() != "all_proxy"}
+    proc = await asyncio.create_subprocess_exec(
+        CLI_PATH, *args,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        env=env,
+    )
+    try:
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.communicate()
+        raise RuntimeError("dreamina CLI timed out")
+    if proc.returncode != 0:
+        raise RuntimeError(f"dreamina CLI failed ({proc.returncode}): "
+                           f"{stderr.decode()[:300]} {stdout.decode()[:300]}")
+    return json.loads(stdout.decode())
+
+
 class JimengEditAdapter:
-    def __init__(self, http: httpx.AsyncClient, session_id: str, base_url: str,
-                 model: str, storage, fallback_translator=None):
+    def __init__(self, http: httpx.AsyncClient, storage, model: str = "4.0",
+                 fallback_translator=None, ratio: str = "1:1"):
         self.http = http
-        self.session_id = session_id
-        self.base_url = base_url.rstrip("/")
-        self.model = model
         self.storage = storage
+        self.model = model
         self.fallback_translator = fallback_translator
-        self._draft_id = str(uuid.uuid4())
-        self._component_id = str(uuid.uuid4())
-        self._submit_id = str(uuid.uuid4())
+        self.ratio = ratio
 
     async def translate(self, image_url: str, key_hint: str,
                         translations: dict[str, str] | None = None,
@@ -46,11 +66,17 @@ class JimengEditAdapter:
             prompt = build_edit_prompt(translations, logos)
             if not prompt or (not translations and not logos):
                 return image_url
-            # step 1: upload reference image to jimeng blob store
-            image_id = await self._upload_image(image_url)
-            # step 2: build correct blend payload (sidecar 的 blend 是空的，这里是修复)
-            out_url = await self._generate(prompt, image_id)
-            # step 3: download result to R2
+            # download source to temp file (CLI needs local path)
+            r = await self.http.get(image_url, timeout=60)
+            r.raise_for_status()
+            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
+                f.write(r.content)
+                local_path = f.name
+            try:
+                out_url = await self._generate(local_path, prompt)
+            finally:
+                os.unlink(local_path)
+            # download result to R2
             if self.storage is None:
                 return out_url
             img = await self.http.get(out_url, timeout=120)
@@ -60,193 +86,24 @@ class JimengEditAdapter:
         except Exception as e:
             if self.fallback_translator is None:
                 raise
-            print(f"[jimeng] failed ({type(e).__name__}): {e}", flush=True)
+            print(f"[jimeng-cli] failed ({type(e).__name__}): {e}", flush=True)
             return await self.fallback_translator.translate(image_url, key_hint)
 
-    async def _upload_image(self, url: str) -> str:
-        """上传图片到 jimeng blob store，返回 imageId。"""
-        # download from source
-        r = await self.http.get(url, timeout=60)
-        r.raise_for_status()
-        # upload via sidecar's upload endpoint (reuses auth/region logic)
-        upload_resp = await self.http.post(
-            self.base_url + "/v1/upload/image",
-            headers={"Authorization": f"Bearer {self.session_id}"},
-            json={"url": url},
-            timeout=60,
-        )
-        if upload_resp.status_code == 200:
-            return upload_resp.json().get("image_id", upload_resp.json().get("id", ""))
-        # fallback: upload raw bytes via imagex API (same as sidecar)
-        return await self._upload_to_imagex(url)
-
-    async def _upload_to_imagex(self, url: str) -> str:
-        """通过即梦内部 imagex 上传图片。"""
-        img_bytes = (await self.http.get(url, timeout=60)).content
-        resp = await self.http.post(
-            self.base_url + "/mweb/v1/get_upload_token",
-            headers={"Authorization": f"Bearer {self.session_id}"},
-            json={},
-            timeout=30,
-        )
-        resp.raise_for_status()
-        token_data = resp.json().get("data", {})
-        service_id = token_data.get("service_id", "")
-        _ = service_id
-        token = token_data.get("token", "")
-        upload_url = token_data.get("upload_url", "")
-
-        if not upload_url:
-            raise RuntimeError("no upload_url from jimeng")
-
-        # upload via imagex
-        img_resp = await self.http.post(
-            upload_url,
-            headers={"Authorization": f"Bearer {token}", "Content-Type": "image/jpeg"},
-            content=img_bytes,
-            timeout=30,
-        )
-        img_resp.raise_for_status()
-        uri = img_resp.json().get("result", {}).get("uri", "")
-        if not uri:
-            raise RuntimeError(f"no uri from imagex: {img_resp.text[:200]}")
-        return uri
-
-    async def _generate(self, prompt: str, image_id: str) -> str:
-        """构建正确的 blend payload 并提交生成任务。"""
-        session_id = self.session_id
-        region_info = _parse_region(session_id)
-
-        # step A: build blend ability list (sidecar 这步是空的，这里正确组装)
-        ability_id = str(uuid.uuid4())
-        ability_list = [{
-            "abilityName": "byte_edit",
-            "strength": 0.5,
-            "id": ability_id,
-            "upload_image_ids": [{"id": image_id}],
-            "source": {"imageUrl": f"blob:https://jimeng.jianying.com/{uuid.uuid4()}"},
-        }]
-
-        # step B: build prompt placeholder list (1张图 → 1个 placeholder)
-        prompt_placeholder = [{
-            "type": "image",
-            "index": 0,
-            "id": str(uuid.uuid4()),
-            "title": "",
-            "image_id": image_id,
-        }]
-
-        # step C: core params
-        core_param = {
-            "type": "", "id": str(uuid.uuid4()),
-            "model": "high_aes_general_v40",
-            "prompt": "##" + prompt,
-            "sample_strength": 0.5,
-            "large_image_info": {
-                "type": "", "id": str(uuid.uuid4()),
-                "min_version": "3.0.2", "width": 2048, "height": 2048,
-                "resolution_type": "2k",
-            },
-            "intelligent_ratio": False,
-            "image_ratio": 1,
-            "negative_prompt": "",
-            "seed": _random_seed(),
-        }
-
-        # step D: blend ability list (sidecar 的 buildBlendAbilityList 是空的——这是 bug 的根源，ability_list 在 step A 已正确组装)
-
-        # step E: draft content
-        component_id = str(uuid.uuid4())
-        generate_id2 = str(uuid.uuid4())
-        draft_content = {
-            "type": "draft", "id": self._draft_id,
-            "min_version": "3.0.2", "min_features": [], "is_from_tsn": True,
-            "version": "3.3.9",
-            "main_component_id": component_id,
-            "component_list": [{
-                "type": "image_base_component", "id": component_id,
-                "min_version": "3.0.2", "aigc_mode": "workbench",
-                "metadata": {"type": "", "id": str(uuid.uuid4()),
-                             "created_platform": 3, "created_platform_version": "",
-                             "created_time_in_ms": str(int(asyncio.get_event_loop().time() * 1000)),
-                             "created_did": ""},
-                "generate_type": "generate",
-                "abilities": {
-                    "type": "", "id": str(uuid.uuid4()),
-                    "generate": {
-                        "type": "", "id": generate_id2,
-                        "core_param": core_param,
-                        "gen_option": {"type": "", "id": str(uuid.uuid4()), "generate_all": False},
-                    },
-                },
-            }],
-            "draft_components": [{
-                "type": "generate",
-                "id": generate_id2,
-                "ability_list": ability_list,
-                "prompt_placeholder_info_list": prompt_placeholder,
-                "postedit_param": {"type": "", "id": str(uuid.uuid4()), "generate_type": 0},
-            }],
-            "postedit_param": {"type": "", "id": str(uuid.uuid4()), "generate_type": 0},
-        }
-
-        # step F: request payload
-        request_data = {
-            "extend": {"root_model": "high_aes_general_v40"},
-            "submit_id": self._submit_id,
-            "draft_content": json.dumps(draft_content, ensure_ascii=False),
-        }
-
-        image_referer = region_info["image_referer"]
-        gen_resp = await self.http.post(
-            self.base_url + "/mweb/v1/aigc_draft/generate",
-            headers={"Authorization": f"Bearer {self.session_id}",
-                     "Referer": image_referer,
-                     "Content-Type": "application/json"},
-            json=request_data,
-            timeout=30,
-        )
-        gen_resp.raise_for_status()
-        gen_data = gen_resp.json().get("data", {})
-        history_id = gen_data.get("aigc_data", {}).get("history_record_id")
-        if not history_id:
-            raise RuntimeError(f"no history_record_id: {gen_resp.text[:200]}")
-
-        # step G: poll result
-        return await self._poll_result(history_id)
-
-    async def _poll_result(self, history_id: str) -> str:
-        poll_url = self.base_url + "/mweb/v1/get_history_by_ids"
-        for _ in range(180):
-            await asyncio.sleep(20)
-            resp = await self.http.post(poll_url, headers={
-                "Authorization": f"Bearer {self.session_id}",
-                "Content-Type": "application/json"},
-                json={"history_ids": [history_id],
-                       "image_info": {"width": 2048, "height": 2048, "format": "webp",
-                                       "image_scene_list": [{"scene": "normal", "width": 720,
-                                                              "height": 720, "uniq_key": "720",
-                                                              "format": "webp"}]}},
-                timeout=30)
-            resp.raise_for_status()
-            task = resp.json().get(history_id, {})
-            items = task.get("item_list", [])
-            urls = [item.get("origin_url") or item.get("url") or "" for item in items]
-            urls = [u for u in urls if u]
-            if urls:
-                return urls[0]
-            status = task.get("status", 0)
-            if status in (50, 100):
-                await asyncio.sleep(10)
-        raise RuntimeError("jimeng poll timeout (30min)")
-
-
-def _parse_region(session_id: str) -> dict:
-    if session_id.startswith("us-"):
-        return {"isCN": False, "image_referer": "https://dreamina.capcut.com/ai-tool/generate?type=image"}
-    return {"isCN": True, "image_referer": "https://jimeng.jianying.com/ai-tool/generate?type=image"}
-
-
-def _random_seed() -> int:
-    import random
-    return random.randint(10000000, 99999999)
+    async def _generate(self, local_path: str, prompt: str) -> str:
+        data = await _run_cli([
+            "image2image",
+            "--images", local_path,
+            "--prompt", prompt,
+            "--model_version", self.model,
+            "--ratio", self.ratio,
+            "--resolution_type", "2k",
+            "--generate_num", "1",
+            "--poll", "120",
+        ])
+        if data.get("gen_status") != "success":
+            raise RuntimeError(f"dreamina not success: {data.get('gen_status')} "
+                               f"{data.get('fail_reason', '')}")
+        images = (data.get("result_json") or {}).get("images", [])
+        if not images or "image_url" not in images[0]:
+            raise RuntimeError(f"dreamina no image: {str(data)[:200]}")
+        return images[0]["image_url"]

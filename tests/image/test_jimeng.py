@@ -37,27 +37,49 @@ async def test_no_translations_returns_original():
     def noop(req):
         return httpx.Response(200, content=b"img")
     http = httpx.AsyncClient(transport=httpx.MockTransport(noop))
-    storage = FakeStorage()
-    vlm = FakeVLM()
-    ad = JimengEditAdapter(http, "sess", "http://x",
-                           "jimeng-4.0", storage, fallback_translator=vlm)
-    out = await ad.translate("https://img/a.jpg", "hint")
-    assert out == "https://img/a.jpg"
-    assert not vlm.called
+    ad = JimengEditAdapter(http, FakeStorage(), fallback_translator=FakeVLM())
+    assert await ad.translate("https://img/a.jpg", "hint") == "https://img/a.jpg"
 
 
-async def test_sidecar_error_falls_back():
-    def handler(req):
-        if "generations" in str(req.url.path):
-            return httpx.Response(500, json={"error": "busy"})
+async def test_cli_error_falls_back(monkeypatch):
+    import openoctopus.image.jimeng as jimeng_mod
+
+    async def boom(*args, **kwargs):
+        raise RuntimeError("cli down")
+
+    monkeypatch.setattr(jimeng_mod, "_run_cli", boom)
+    def noop(req):
         return httpx.Response(200, content=b"img")
-
-    http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    storage = FakeStorage()
+    http = httpx.AsyncClient(transport=httpx.MockTransport(noop))
     vlm = FakeVLM()
-    ad = JimengEditAdapter(http, "sess", "http://x",
-                           "jimeng-4.0", storage, fallback_translator=vlm)
+    ad = JimengEditAdapter(http, FakeStorage(), fallback_translator=vlm)
     out = await ad.translate("https://img/a.jpg", "hint",
                              translations={"a": "b"}, logos=["X"])
     assert out == "https://cdn.example.com/vlm.png"
-    assert vlm.called and not storage.put_called
+    assert vlm.called
+
+
+async def test_cli_success_uploads(monkeypatch):
+    import openoctopus.image.jimeng as jimeng_mod
+
+    async def fake_cli(args, timeout=180):
+        assert "image2image" in args
+        assert "--model_version" in args
+        assert args[args.index("--model_version") + 1] == "4.0"
+        assert "--generate_num" in args
+        assert args[args.index("--generate_num") + 1] == "1"
+        return {"gen_status": "success",
+                "result_json": {"images": [{"image_url": "https://jimeng/out.png"}]}}
+
+    monkeypatch.setattr(jimeng_mod, "_run_cli", fake_cli)
+    def handler(req):
+        if req.url.path.endswith("/out.png"):
+            return httpx.Response(200, content=b"imgbytes")
+        return httpx.Response(200, content=b"source")
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    storage = FakeStorage()
+    ad = JimengEditAdapter(http, storage, model="4.0", fallback_translator=FakeVLM())
+    out = await ad.translate("https://img/a.jpg", "hint",
+                             translations={"杯": "Чашка"})
+    assert out == "https://cdn.example.com/j.png"
+    assert storage.put_called

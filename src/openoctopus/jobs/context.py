@@ -49,10 +49,8 @@ def build_context(settings: Settings) -> AppContext:
 
         ctx.image_translator = JimengEditAdapter(
             http=httpx.AsyncClient(timeout=320),
-            session_id=settings.jimeng_session_id,
-            base_url=settings.jimeng_base_url,
-            model=settings.jimeng_model,
             storage=ctx.storage,
+            model=settings.jimeng_model,
             fallback_translator=vlm)
     else:
         ctx.image_translator = vlm
