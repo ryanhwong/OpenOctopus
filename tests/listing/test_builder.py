@@ -41,10 +41,36 @@ def test_build_variant_items():
     assert [i["offer_id"] for i in items] == ["7-1", "7-2"]
     assert [i["price"] for i in items] == ["150", "160"]
     assert items[0]["images"] == ["https://c/r.png"]
-    for i in items:
-        ids = [a["id"] for a in i["attributes"]]
-        assert MERGE_ATTR_ID in ids and 1 in ids
+    assert MERGE_ATTR_ID in [a["id"] for a in items[0]["attributes"]]
+    assert MERGE_ATTR_ID not in [a["id"] for a in items[1]["attributes"]]
+    assert 1 in [a["id"] for a in items[1]["attributes"]]
     assert items[0]["attributes"][1] == {"complex_id": 0, "id": 85,
                                          "values": [{"dictionary_value_id": 123}]}
     assert items[1]["attributes"][1] == {"complex_id": 0, "id": 85,
                                          "values": [{"value": "Синий"}]}
+
+
+def test_build_variant_items_dims():
+    from openoctopus.listing.builder import build_variant_items
+
+    items = build_variant_items(
+        title_ru="T", description_ru="d", offer_id="7",
+        category_id=42, type_id=99, base_attributes=[],
+        variants=[{"suffix": "R", "price_rub": 10, "image_urls": [],
+                   "color_attr_id": 0, "color_value": "R", "color_dict_id": None}],
+        dims={"length": 100, "width": 50, "height": 20, "weight": 150})
+    assert items[0]["weight"] == 150
+    assert items[0]["weight_unit"] == "g"
+    assert (items[0]["width"], items[0]["height"], items[0]["depth"]) == (50, 20, 100)
+    assert items[0]["dimension_unit"] == "mm"
+
+
+def test_build_variant_items_no_dims():
+    from openoctopus.listing.builder import build_variant_items
+
+    items = build_variant_items(
+        title_ru="T", description_ru="d", offer_id="7",
+        category_id=42, type_id=99, base_attributes=[],
+        variants=[{"suffix": "R", "price_rub": 10, "image_urls": [],
+                   "color_attr_id": 0, "color_value": "R", "color_dict_id": None}])
+    assert "weight" not in items[0]

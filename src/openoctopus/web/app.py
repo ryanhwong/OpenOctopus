@@ -195,7 +195,9 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
     async def edit(request: Request, pid: int, title_ru: str = Form(...),
                    description_ru: str = Form(...),
                    price_rub: str = Form(""), ozon_category_id: str = Form(...),
-                   attributes_json: str = Form("{}")):
+                   attributes_json: str = Form("{}"), length_mm: str = Form(""),
+                   width_mm: str = Form(""), height_mm: str = Form(""),
+                   weight_g: str = Form("")):
         try:
             attrs = _json.loads(attributes_json)
         except _json.JSONDecodeError:
@@ -225,6 +227,19 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         upsert_translation(conn, pid, "description", "", description_ru)
         if price_rub_val is not None:
             conn.execute("UPDATE products SET price_rub=? WHERE id=?", (price_rub_val, pid))
+        dims = {}
+        for field, key in (("length_mm", length_mm), ("width_mm", width_mm),
+                           ("height_mm", height_mm), ("weight_g", weight_g)):
+            if (val := (key or "").strip()):
+                try:
+                    dims[field] = float(val)
+                except ValueError:
+                    return HTMLResponse(f"Invalid {field}", status_code=400)
+        if dims:
+            conn.execute(
+                "UPDATE products SET {} WHERE id=?".format(
+                    ", ".join(f"{k}=?" for k in dims)),
+                (*dims.values(), pid))
         conn.execute(
             "INSERT INTO category_mappings(product_id, ozon_category_id, type_id, "
             "attributes_json, human_confirmed)"

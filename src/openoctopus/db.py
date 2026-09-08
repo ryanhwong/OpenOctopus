@@ -7,6 +7,10 @@ CREATE TABLE IF NOT EXISTS products(
   platform TEXT NOT NULL DEFAULT '1688',
   status TEXT NOT NULL DEFAULT 'new',
   price_rub REAL,
+  length_mm REAL,
+  width_mm REAL,
+  height_mm REAL,
+  weight_g REAL,
   ozon_product_id TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP);
@@ -104,5 +108,9 @@ def init_db(path: str) -> None:
         conn.execute("ALTER TABLE images ADD COLUMN selected INTEGER NOT NULL DEFAULT 1")
     if "label" not in img_cols:
         conn.execute("ALTER TABLE images ADD COLUMN label TEXT DEFAULT ''")
+    prod_cols = [r["name"] for r in conn.execute("PRAGMA table_info(products)")]
+    for col in ("length_mm", "width_mm", "height_mm", "weight_g"):
+        if col not in prod_cols:
+            conn.execute(f"ALTER TABLE products ADD COLUMN {col} REAL")
     conn.commit()
     conn.close()

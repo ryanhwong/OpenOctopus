@@ -24,6 +24,18 @@
       <input id="f-price" name="price_rub" type="text" inputmode="decimal"
              value="{{ p.get('price_rub') or '' }}" placeholder="留空则用汇率自动换算价">
 
+      <label>尺寸重量（长mm × 宽mm × 高mm，重量g；填全才传 Ozon，包装另计）</label>
+      <div style="display:flex;gap:8px">
+        <input name="length_mm" type="text" inputmode="decimal" placeholder="长"
+               value="{{ p.get('length_mm') or '' }}" style="margin:4px 0 14px">
+        <input name="width_mm" type="text" inputmode="decimal" placeholder="宽"
+               value="{{ p.get('width_mm') or '' }}" style="margin:4px 0 14px">
+        <input name="height_mm" type="text" inputmode="decimal" placeholder="高"
+               value="{{ p.get('height_mm') or '' }}" style="margin:4px 0 14px">
+        <input name="weight_g" type="text" inputmode="decimal" placeholder="重(g)"
+               value="{{ p.get('weight_g') or '' }}" style="margin:4px 0 14px">
+      </div>
+
       <label for="f-cat">Ozon 叶子类型（类目:类型）</label>
       <input id="f-cat" name="ozon_category_id" type="text" list="cats"
              value="{% if mapping %}{{ mapping.ozon_category_id }}{% if mapping.type_id %}:{{ mapping.type_id }}{% endif %}{% endif %}" placeholder="从下方候选选择叶子类型">

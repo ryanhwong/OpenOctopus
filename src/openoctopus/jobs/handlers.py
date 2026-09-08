@@ -169,8 +169,20 @@ async def handle_publish(ctx, payload: dict) -> None:
     main_urls = [r["translated_url"] or r["source_url"] for r in conn.execute(
         "SELECT kind, translated_url, source_url FROM images "
         "WHERE product_id=? AND kind='main' AND selected=1 ORDER BY id", (pid,))]
+    detail_urls = [r["translated_url"] or r["source_url"] for r in conn.execute(
+        "SELECT kind, translated_url, source_url FROM images "
+        "WHERE product_id=? AND kind='detail' AND selected=1 ORDER BY id", (pid,))]
     if not main_urls:
         raise RuntimeError("没有选中上架图片，请在人审页至少勾选一张")
+    gallery_urls = list(dict.fromkeys(main_urls + detail_urls))
+    dims = {}
+    dimrow = conn.execute("SELECT length_mm, width_mm, height_mm, weight_g FROM products "
+                          "WHERE id=?", (pid,)).fetchone()
+    if dimrow:
+        dims = {k: dimrow[k] for k in ("length_mm", "width_mm", "height_mm", "weight_g")
+                if dimrow[k]}
+    dims_arg = {"length": dims["length_mm"], "width": dims["width_mm"],
+                "height": dims["height_mm"], "weight": dims["weight_g"]} if len(dims) == 4 else None
     price = conn.execute("SELECT price_rub FROM products WHERE id=?", (pid,)).fetchone()["price_rub"]
 
     from openoctopus.listing.builder import build_variant_items
@@ -203,7 +215,7 @@ async def handle_publish(ctx, payload: dict) -> None:
                 vprice = round(cny * ctx.settings.price_cny_to_rub)
             else:
                 vprice = round(cny, 2)
-            imgs = list(dict.fromkeys(sw.get(opt_zh, []) + main_urls))
+            imgs = list(dict.fromkeys(sw.get(opt_zh, []) + gallery_urls))
             variants.append({
                 "suffix": opt_zh,
                 "price_rub": vprice,
@@ -212,16 +224,17 @@ async def handle_publish(ctx, payload: dict) -> None:
                 "color_value": o.get("option_ru") or opt_zh,
                 "color_dict_id": o.get("dict_value_id"),
             })
-        currency = getattr(ctx.settings, "price_currency", "RUB").upper()
+        currency = (getattr(ctx.settings, "price_currency", "RUB") or "RUB").upper()
         items = build_variant_items(title_ru, desc_ru, str(pid), desc_id, type_id,
-                                    base_attrs, variants, currency)
+                                    base_attrs, variants, currency, dims_arg)
     else:
         items = build_import_payload(
             title_ru=title_ru, description_ru=desc_ru,
             offer_id=str(pid), price_rub=float(price or 0),
             category_id=desc_id, type_id=type_id,
-            attributes=base_attrs, image_urls=main_urls,
-            currency_code=getattr(ctx.settings, "price_currency", "RUB").upper())["items"]
+            attributes=base_attrs, image_urls=gallery_urls,
+            currency_code=(getattr(ctx.settings, "price_currency", "RUB") or "RUB").upper(),
+            dims=dims_arg)["items"]
 
     result = await ctx.ozon.import_products(items)
     task_id = result.get("result", {}).get("task_id")
