@@ -57,8 +57,12 @@
         </figure>
         <figure>
           <figcaption>译文图 · {{ img['status'] }}</figcaption>
-          {% if img['translated_url'] %}
+          {% if img['status'] == 'pending' %}
+          <div class="imgloading"><span class="spinner"></span> 生成中…</div>
+          {% elif img['translated_url'] %}
           <img src="{{ img['translated_url'] }}" alt="译文图 #{{ img['id'] }}" loading="lazy">
+          {% elif img['status'] == 'failed' %}
+          <div class="imgloading err">生成失败，可点下方重试</div>
           {% else %}<p class="muted">尚未生成</p>{% endif %}
         </figure>
       </div>
@@ -93,4 +97,20 @@
   </form>
   <span class="muted">提交前请确认译文、价格、类目与必填属性无误</span>
 </div>
+
+<style>
+.imgloading{display:flex;align-items:center;gap:8px;justify-content:center;min-height:90px;
+  color:var(--muted);font-size:13px}
+.imgloading.err{color:var(--danger)}
+.spinner{width:20px;height:20px;border:3px solid var(--primary-soft);border-top-color:var(--primary);
+  border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+
+{% if p['status'] == 'generating' %}
+<script>
+// 生成中：每 5 秒自动刷新，避免手动刷新
+setTimeout(() => location.reload(), 5000);
+</script>
+{% endif %}
 {% endblock %}

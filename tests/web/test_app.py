@@ -150,6 +150,21 @@ def test_regenerate_single_image_enqueues_job(tmp_path):
     assert _j.loads(job[1]) == {"product_id": 1, "image_id": 1, "prompt_override": "只去logo"}
 
 
+def test_review_shows_spinner_and_autorefresh_when_generating(tmp_path):
+    c, db_path = make_client(tmp_path)
+    files = {"file": ("p.html", BytesIO(PAGE.encode()), "text/html")}
+    c.post("/products/import-html", files=files)
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO images(product_id, kind, source_url, status) "
+                 "VALUES(1, 'main', 'https://img/a.jpg', 'pending')")
+    conn.execute("UPDATE products SET status='generating' WHERE id=1")
+    conn.commit()
+    html = c.get("/products/1").text
+    assert "spinner" in html
+    assert "生成中" in html
+    assert "location.reload" in html
+
+
 def test_edit_invalid_attributes_returns_400(tmp_path):
     c, _ = make_client(tmp_path)
     files = {"file": ("p.html", BytesIO(PAGE.encode()), "text/html")}
