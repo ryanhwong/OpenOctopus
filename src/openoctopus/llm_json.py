@@ -4,6 +4,17 @@ import json
 import re
 
 
+def first_content(resp) -> str:
+    """取首个 choice 的文本；上游过载常回 choices=null/空，必须转成明错以便重试。"""
+    choices = getattr(resp, "choices", None)
+    if not choices:
+        raise ValueError("LLM returned no choices (provider overloaded?), retry later")
+    content = choices[0].message.content
+    if not isinstance(content, str) or not content.strip():
+        raise ValueError("LLM returned empty content, retry later")
+    return content
+
+
 def parse_json(text: str) -> dict:
     text = (text or "").strip()
     m = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)

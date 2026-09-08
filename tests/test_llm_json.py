@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from openoctopus.llm_json import parse_json
+from openoctopus.llm_json import first_content, parse_json
 
 
 def test_plain_json():
@@ -29,3 +29,23 @@ def test_garbage_raises():
 def test_null_literal_raises_clear_error():
     with pytest.raises(TypeError, match="non-object"):
         parse_json("null")
+
+
+def _resp(choices):
+    return type("R", (), {"choices": choices})()
+
+
+def test_first_content_ok():
+    msg = type("M", (), {"content": '{"a": 1}'})()
+    r = type("R", (), {"choices": [type("C", (), {"message": msg})()]})()
+    assert first_content(r) == '{"a": 1}'
+
+
+def test_first_content_none_choices():
+    with pytest.raises(ValueError, match="no choices"):
+        first_content(_resp(None))
+
+
+def test_first_content_empty_choices():
+    with pytest.raises(ValueError, match="no choices"):
+        first_content(_resp([]))

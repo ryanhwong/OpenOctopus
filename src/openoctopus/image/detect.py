@@ -1,6 +1,6 @@
 import base64
 
-from openoctopus.llm_json import parse_json
+from openoctopus.llm_json import first_content, parse_json
 from openoctopus.models import TextBox
 
 DETECT_PROMPT = (
@@ -41,7 +41,7 @@ async def detect_and_translate(client, model: str, image_bytes: bytes,
         response_format={"type": "json_object"},
         temperature=0.0,
     )
-    data = parse_json(resp.choices[0].message.content)
+    data = parse_json(first_content(resp))
     return [_normalize_box(b) for b in data.get("boxes", []) if isinstance(b, dict)]
 
 
