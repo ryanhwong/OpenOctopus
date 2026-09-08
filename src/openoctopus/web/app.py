@@ -188,7 +188,8 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                                      "price_rub": round(cny * rate), "combos": len(grp)})
         return TEMPLATES.TemplateResponse(request, "review.html",
                                           {"p": p, "t": t, "images": images,
-                                           "mapping": mapping, "cats": cats, "variants": variants})
+                                           "mapping": mapping, "cats": cats, "variants": variants,
+                                           "currency": (ctx.settings.price_currency or "RUB").upper()})
 
     @app.post("/products/{pid}/edit")
     async def edit(request: Request, pid: int, title_ru: str = Form(...),
@@ -240,9 +241,9 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         row = conn.execute("SELECT status FROM products WHERE id=?", (pid,)).fetchone()
         if row is None:
             raise HTTPException(status_code=404, detail="Product not found")
-        if row["status"] not in ("review", "collected", "generating"):
+        if row["status"] not in ("review", "collected", "generating", "failed"):
             return HTMLResponse(
-                "Approve only allowed in review/collected/generating status",
+                "Approve only allowed in review/collected/generating/failed status",
                 status_code=400)
         conn.execute("UPDATE products SET status='publishing' WHERE id=?", (pid,))
         conn.commit()
@@ -255,9 +256,9 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         row = conn.execute("SELECT status FROM products WHERE id=?", (pid,)).fetchone()
         if row is None:
             raise HTTPException(status_code=404, detail="Product not found")
-        if row["status"] not in ("review", "collected", "generating"):
+        if row["status"] not in ("review", "collected", "generating", "failed"):
             return HTMLResponse(
-                "Regenerate only allowed in review/collected/generating status",
+                "Regenerate only allowed in review/collected/generating/failed status",
                 status_code=400)
         conn.execute("UPDATE products SET status='generating' WHERE id=?", (pid,))
         conn.commit()

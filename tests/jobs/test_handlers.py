@@ -66,7 +66,8 @@ class FakeOzon:
 def make_publish_ctx(tmp_path):
     db_path = str(tmp_path / "p.db")
     init_db(db_path)
-    return SimpleNamespace(db_path=db_path, settings=None, ozon=FakeOzon())
+    settings = SimpleNamespace(price_cny_to_rub=12.0, price_currency="RUB")
+    return SimpleNamespace(db_path=db_path, settings=settings, ozon=FakeOzon())
 
 
 async def test_publish_sends_items_list_not_nested(tmp_path):
@@ -120,7 +121,6 @@ async def test_publish_variants_multi_items(tmp_path):
         "INSERT INTO sku_options(product_id, option_zh, option_ru, attr_id, dict_value_id) VALUES "
         "(1, '红色', 'Красный', 85, 7), (1, '蓝色', 'Синий', 85, NULL)")
     conn.commit()
-    ctx.settings = SimpleNamespace(price_cny_to_rub=12.0)
 
     await handle_publish(ctx, {"product_id": 1})
 

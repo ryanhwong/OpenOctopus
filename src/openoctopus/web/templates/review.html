@@ -7,7 +7,7 @@
     <span class="pill pill-{{ p['status'] }}">{{ p['status'] }}</span>
   </h1>
   <p class="muted" style="margin:0">来源：<a class="urllink" href="{{ p['source_url'] }}">{{ p['source_url'] }}</a>
-    {% if p.get('price_rub') %} ｜ 上架价：<strong>{{ p['price_rub'] }} ₽</strong>{% endif %}</p>
+    {% if p.get('price_rub') %} ｜ 上架价：<strong>{{ p['price_rub'] }} {{ currency }}</strong>{% endif %}</p>
 </div>
 
 <div class="grid2">
@@ -20,7 +20,7 @@
       <label for="f-desc">描述 (RU)</label>
       <textarea id="f-desc" name="description_ru" rows="8">{{ t.get('description', {}).get('ru', '') }}</textarea>
 
-      <label for="f-price">价格 (RUB)</label>
+      <label for="f-price">价格 ({{ currency }})</label>
       <input id="f-price" name="price_rub" type="text" inputmode="decimal"
              value="{{ p.get('price_rub') or '' }}" placeholder="留空则用汇率自动换算价">
 
@@ -49,7 +49,7 @@
     <section class="card" aria-label="颜色变体" style="margin-bottom:20px">
       <h2 style="margin-top:0">颜色变体（{{ variants|length }} 组，上架自动拆分+合并同卡）</h2>
       <table style="width:100%;font-size:13px;border-collapse:collapse">
-        <tr style="color:var(--muted)"><td>颜色</td><td>俄语</td><td>价格 RUB</td><td>规格组合</td></tr>
+        <tr style="color:var(--muted)"><td>颜色</td><td>俄语</td><td>价格 {{ currency }}</td><td>规格组合</td></tr>
         {% for v in variants %}
         <tr style="border-top:1px solid var(--border)">
           <td>{{ v.zh }}</td><td>{{ v.ru }}</td><td>{{ v.price_rub }}</td><td>{{ v.combos }}</td>

@@ -111,8 +111,11 @@ async def handle_generate(ctx, payload: dict) -> None:
 
     price = conn.execute("SELECT price_rub FROM products WHERE id=?", (pid,)).fetchone()["price_rub"]
     if price is None:
-        conn.execute("UPDATE products SET price_rub=? WHERE id=?",
-                     (round(raw.price_cny * s.price_cny_to_rub), pid))
+        if getattr(s, "price_currency", "RUB").upper() == "RUB":
+            default_price = round(raw.price_cny * s.price_cny_to_rub)
+        else:
+            default_price = round(raw.price_cny, 2)
+        conn.execute("UPDATE products SET price_rub=? WHERE id=?", (default_price, pid))
     if raw.skus:
         await _resolve_sku_options(ctx, conn, pid, raw, cat_key, schema_items)
     conn.execute("UPDATE products SET status='review', updated_at=CURRENT_TIMESTAMP WHERE id=?", (pid,))
@@ -196,23 +199,29 @@ async def handle_publish(ctx, payload: dict) -> None:
         for opt_zh, group in groups.items():
             o = opt_map.get(opt_zh, {})
             cny = min((g.price_cny for g in group if g.price_cny), default=0) or raw_pub.price_cny
+            if getattr(ctx.settings, "price_currency", "RUB").upper() == "RUB":
+                vprice = round(cny * ctx.settings.price_cny_to_rub)
+            else:
+                vprice = round(cny, 2)
             imgs = list(dict.fromkeys(sw.get(opt_zh, []) + main_urls))
             variants.append({
                 "suffix": opt_zh,
-                "price_rub": round(cny * ctx.settings.price_cny_to_rub),
+                "price_rub": vprice,
                 "image_urls": imgs,
                 "color_attr_id": o.get("attr_id") or 0,
                 "color_value": o.get("option_ru") or opt_zh,
                 "color_dict_id": o.get("dict_value_id"),
             })
+        currency = getattr(ctx.settings, "price_currency", "RUB").upper()
         items = build_variant_items(title_ru, desc_ru, str(pid), desc_id, type_id,
-                                    base_attrs, variants)
+                                    base_attrs, variants, currency)
     else:
         items = build_import_payload(
             title_ru=title_ru, description_ru=desc_ru,
             offer_id=str(pid), price_rub=float(price or 0),
             category_id=desc_id, type_id=type_id,
-            attributes=base_attrs, image_urls=main_urls)["items"]
+            attributes=base_attrs, image_urls=main_urls,
+            currency_code=getattr(ctx.settings, "price_currency", "RUB").upper())["items"]
 
     result = await ctx.ozon.import_products(items)
     task_id = result.get("result", {}).get("task_id")

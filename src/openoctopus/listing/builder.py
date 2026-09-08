@@ -3,7 +3,7 @@ MERGE_ATTR_ID = 9048
 
 def build_variant_items(title_ru: str, description_ru: str, offer_id: str,
                         category_id: int, type_id: int, base_attributes: list[dict],
-                        variants: list[dict]) -> list[dict]:
+                        variants: list[dict], currency_code: str = "RUB") -> list[dict]:
     """多色变体 items：同名同类目，除颜色外属性一致 + 9048 合并属性。
 
     variants 每项: {suffix, price_rub, image_urls, color_attr_id,
@@ -26,7 +26,7 @@ def build_variant_items(title_ru: str, description_ru: str, offer_id: str,
             "description_category_id": category_id,
             "type_id": type_id,
             "price": str(v["price_rub"]),
-            "currency_code": "RUB",
+            "currency_code": currency_code,
             "images": v["image_urls"],
             "attributes": attrs,
         })
@@ -40,6 +40,7 @@ def build_import_payload(
     type_id: int,
     attributes: list[dict],
     image_urls: list[str],
+    currency_code: str = "RUB",
 ) -> dict:
     return {
         "items": [
@@ -47,10 +48,10 @@ def build_import_payload(
                 "offer_id": offer_id,
                 "name": title_ru[:200],
                 "description": description_ru,
-                "description_category_id": category_id,
-                "type_id": type_id,
-                "price": str(price_rub),
-                "currency_code": "RUB",
+            "description_category_id": category_id,
+            "type_id": type_id,
+            "price": str(price_rub),
+            "currency_code": currency_code,
                 "images": image_urls,
                 "attributes": [
                     {

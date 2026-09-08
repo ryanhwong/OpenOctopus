@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     db_path: str = "data/openoctopus.db"
     live_mode: bool = False
     price_cny_to_rub: float = 12.0
+    price_currency: str = "RUB"
 
     ozon_client_id: str = ""
     ozon_api_key: str = ""
