@@ -39,16 +39,20 @@ def build_context(settings: Settings) -> AppContext:
                                         fallback, settings.fallback_content_model)
     ctx.content_translator = LLMContentTranslator(ctx.llm_client, settings.content_model)
     ctx.storage = make_r2(settings)
+    img_http_headers = {"Referer": "https://detail.1688.com/",
+                        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                                      "Chrome/120.0.0.0 Safari/537.36"}
     vlm = VlmPipelineTranslator(
         FallbackChatClient(primary, settings.image_model,
                            fallback, settings.fallback_image_model),
         settings.image_model, ctx.storage, settings.font_path,
-        httpx.AsyncClient(timeout=60))
+        httpx.AsyncClient(timeout=60, headers=img_http_headers))
     if (settings.image_backend or "vlm").lower() == "jimeng":
         from openoctopus.image.jimeng import JimengEditAdapter
 
         ctx.image_translator = JimengEditAdapter(
-            http=httpx.AsyncClient(timeout=320),
+            http=httpx.AsyncClient(timeout=320, headers=img_http_headers),
             llm_client=FallbackChatClient(primary, settings.image_model,
                                           fallback, settings.fallback_image_model),
             llm_model=settings.image_model,
