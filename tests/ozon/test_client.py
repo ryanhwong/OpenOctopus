@@ -53,3 +53,22 @@ async def test_category_attributes_sends_both_ids():
     assert out == [{"id": 1}]
     assert seen["body"]["description_category_id"] == 15621049
     assert seen["body"]["type_id"] == 970575627
+
+
+async def test_update_price_sends_correct_body():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["path"] = request.url.path
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json={})
+
+    ozon = make_ozon(handler)
+    out = await ozon.update_price(558174716, 150.0, old_price=200.0)
+    await ozon.http.aclose()
+    assert "prices" in seen["path"] or "import/prices" in seen["path"]
+    prices = seen["body"]["prices"]
+    assert len(prices) == 1
+    assert prices[0]["product_id"] == 558174716
+    assert prices[0]["price"] == "150.0"
+    assert prices[0]["old_price"] == "200.0"

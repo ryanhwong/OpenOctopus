@@ -32,3 +32,10 @@ class OzonClient:
 
     async def import_task_info(self, task_id: int) -> dict:
         return await self._post(PATHS["import_info"], {"task_id": task_id})
+
+    async def update_price(self, product_id: int, price: float,
+                           old_price: float | None = None) -> dict:
+        item = {"product_id": product_id, "price": str(price)}
+        if old_price and old_price > price:
+            item["old_price"] = str(old_price)
+        return await self._post("/v1/product/import/prices", {"prices": [item]})

@@ -147,6 +147,12 @@ async def handle_publish(ctx, payload: dict) -> None:
     conn.execute("UPDATE products SET status=?, ozon_product_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
                  (final, ozon_pid or None, pid))
     conn.commit()
+    # 发布成功后同步一次价格到 Ozon（import_payload 含价格，这里确保同步）
+    if final == "listed" and price and price > 0:
+        try:
+            await ctx.ozon.update_price(int(pid), float(price))
+        except Exception:  # noqa: BLE001
+            pass  # 价格同步失败不阻塞主流程，人审页可手动改价
 
 
 def persist_raw_product(conn, rp) -> int:
