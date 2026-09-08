@@ -18,6 +18,14 @@ from openoctopus.image.pipeline import downscale_for_vlm
 
 CLI_PATH = os.path.expanduser("~/.dreamina_cli/dreamina")
 
+GENERIC_EDIT_PROMPT = (
+    "Edit this e-commerce product photo. Look at the image and do the following: "
+    "replace any Chinese text you see with natural Russian, and completely remove "
+    "any English brand logos or watermarks. Only edit regions that actually contain "
+    "text or logos. Keep the product, hands, background, colors and composition "
+    "exactly the same. If there is no text, keep the image unchanged."
+)
+
 
 def build_edit_prompt(translations: dict[str, str] | None = None,
                       logos: list[str] | None = None) -> str:
@@ -79,19 +87,10 @@ class JimengEditAdapter:
             if prompt_override:
                 prompt = prompt_override
             else:
-                # VLM 读图：图里实际有哪些中文/品牌文字（含翻译）
-                small, _ = downscale_for_vlm(data)
-                boxes = await detect_and_translate(self.llm_client, self.llm_model, small)
-                if not boxes:
+                # 优先 VLM 读图：图里实际有哪些中文/品牌文字（含翻译）
+                prompt = await self._detect_prompt(data)
+                if prompt is None:
                     return image_url  # 图里没有文字，原样返回
-
-                # 只处理图里真有的文字
-                translations = {b.zh_text: b.ru_text for b in boxes if b.ru_text and b.zh_text}
-                logos = [b.zh_text for b in boxes if not b.ru_text and b.zh_text]
-                if not translations and not logos:
-                    return image_url  # 全是空文本，不处理
-
-                prompt = build_edit_prompt(translations or None, logos or None)
 
             with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
                 f.write(data)
@@ -112,6 +111,22 @@ class JimengEditAdapter:
                 raise
             print(f"[jimeng-cli] failed ({type(e).__name__}): {e}", flush=True)
             return await self.fallback_translator.translate(image_url, key_hint)
+
+    async def _detect_prompt(self, data: bytes) -> str | None:
+        """VLM 读图生成替换 prompt；失败或读不到文字时降级让即梦自己看图。"""
+        try:
+            small, _ = downscale_for_vlm(data)
+            boxes = await detect_and_translate(self.llm_client, self.llm_model, small)
+            translations = {b.zh_text: b.ru_text for b in boxes if b.ru_text and b.zh_text}
+            logos = [b.zh_text for b in boxes if not b.ru_text and b.zh_text]
+            if not translations and not logos:
+                return None  # 图里没文字，原样返回
+            return build_edit_prompt(translations or None, logos or None)
+        except Exception as e:  # noqa: BLE001
+            # VLM 挂了：降级让即梦自己读图处理（即梦多模态能看图）
+            print(f"[jimeng] VLM detect failed ({type(e).__name__}), "
+                  f"falling back to generic prompt", flush=True)
+            return GENERIC_EDIT_PROMPT
 
     async def _generate(self, local_path: str, prompt: str) -> str:
         data = await _run_cli([
