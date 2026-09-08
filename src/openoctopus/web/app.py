@@ -166,9 +166,29 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         mapping = conn.execute("SELECT * FROM category_mappings WHERE product_id=?", (pid,)).fetchone()
         cats = conn.execute("SELECT id, title FROM ozon_categories WHERE id LIKE '%:%' "
                               "ORDER BY title LIMIT 500").fetchall()
+        variants = []
+        snap = conn.execute("SELECT raw_json FROM source_snapshots WHERE product_id=? "
+                            "ORDER BY id DESC", (pid,)).fetchone()
+        if snap:
+            from openoctopus.models import RawProduct, variant_dim_index
+
+            rraw = RawProduct(**_json.loads(snap["raw_json"]))
+            if rraw.skus:
+                dimn = list(rraw.skus[0].props.keys())[variant_dim_index(rraw)]
+                groups: dict[str, list] = {}
+                for s in rraw.skus:
+                    if dimn in s.props:
+                        groups.setdefault(s.props[dimn], []).append(s)
+                omap = {r["option_zh"]: dict(r) for r in conn.execute(
+                    "SELECT * FROM sku_options WHERE product_id=?", (pid,))}
+                rate = ctx.settings.price_cny_to_rub
+                for opt, grp in sorted(groups.items()):
+                    cny = min((g.price_cny for g in grp if g.price_cny), default=0) or rraw.price_cny
+                    variants.append({"zh": opt, "ru": omap.get(opt, {}).get("option_ru", ""),
+                                     "price_rub": round(cny * rate), "combos": len(grp)})
         return TEMPLATES.TemplateResponse(request, "review.html",
                                           {"p": p, "t": t, "images": images,
-                                           "mapping": mapping, "cats": cats})
+                                           "mapping": mapping, "cats": cats, "variants": variants})
 
     @app.post("/products/{pid}/edit")
     async def edit(request: Request, pid: int, title_ru: str = Form(...),

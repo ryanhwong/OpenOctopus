@@ -1,7 +1,12 @@
 import asyncio
 import json
 
-from openoctopus.category.suggest import fill_attributes, pick_category
+from openoctopus.category.suggest import (
+    fill_attributes,
+    match_option_values,
+    pick_category,
+    translate_options,
+)
 from openoctopus.category.sync import sync_categories
 from openoctopus.jobs.queue import enqueue
 from openoctopus.listing.builder import build_import_payload
@@ -24,6 +29,20 @@ async def handle_collect(ctx, payload: dict) -> None:
     for u in raw.detail_images:
         conn.execute("INSERT INTO images(product_id, kind, source_url) VALUES(?,'detail',?)",
                      (prod["id"], u))
+    seen_imgs = set(raw.main_images) | set(raw.detail_images)
+    if raw.skus:
+        from openoctopus.models import variant_dim_index
+
+        di = variant_dim_index(raw)
+        for s in raw.skus[:40]:
+            u = s.image_url or ""
+            if not u or u in seen_imgs:
+                continue
+            seen_imgs.add(u)
+            vals = list(s.props.values())
+            label = vals[di] if di < len(vals) else ""
+            conn.execute("INSERT INTO images(product_id, kind, source_url, label) "
+                         "VALUES(?,'swatch',?,?)", (prod["id"], u, label))
     conn.execute("UPDATE products SET status='collected', updated_at=CURRENT_TIMESTAMP WHERE id=?",
                  (prod["id"],))
     conn.commit()
@@ -94,8 +113,42 @@ async def handle_generate(ctx, payload: dict) -> None:
     if price is None:
         conn.execute("UPDATE products SET price_rub=? WHERE id=?",
                      (round(raw.price_cny * s.price_cny_to_rub), pid))
+    if raw.skus:
+        await _resolve_sku_options(ctx, conn, pid, raw, cat_key, schema_items)
     conn.execute("UPDATE products SET status='review', updated_at=CURRENT_TIMESTAMP WHERE id=?", (pid,))
     conn.commit()
+
+
+async def _resolve_sku_options(ctx, conn, pid: int, raw, cat_key: str,
+                               attrs_schema: list[dict]) -> None:
+    from openoctopus.models import variant_dim_index
+
+    s = ctx.settings
+    dim_names = list(raw.skus[0].props.keys())
+    dim = dim_names[variant_dim_index(raw)]
+    options = sorted({sku.props[dim] for sku in raw.skus if dim in sku.props})
+    opt_ru = await translate_options(ctx.llm_client, s.content_model, options)
+    color_attr = next((a for a in attrs_schema
+                       if "цвет" in str(a.get("name", "")).lower()), None)
+    attr_id, matches = 0, {}
+    if color_attr:
+        attr_id = int(color_attr.get("id", 0))
+        try:
+            dict_vals = await ctx.ozon.category_attribute_values(
+                attr_id, int(cat_key.split(":")[0]), int(cat_key.split(":")[1])) if s.live_mode else []
+        except Exception:  # noqa: BLE001
+            dict_vals = []
+        matches = await match_option_values(
+            ctx.llm_client, s.content_model,
+            [opt_ru.get(o, o) for o in options], dict_vals)
+    for o in options:
+        ru = opt_ru.get(o, o)
+        conn.execute(
+            "INSERT INTO sku_options(product_id, option_zh, option_ru, attr_id, dict_value_id) "
+            "VALUES(?,?,?,?,?) ON CONFLICT(product_id, option_zh) DO UPDATE SET "
+            "option_ru=excluded.option_ru, attr_id=excluded.attr_id, "
+            "dict_value_id=excluded.dict_value_id",
+            (pid, o, ru, attr_id, matches.get(ru)))
 
 
 async def handle_publish(ctx, payload: dict) -> None:
@@ -117,13 +170,51 @@ async def handle_publish(ctx, payload: dict) -> None:
         raise RuntimeError("没有选中上架图片，请在人审页至少勾选一张")
     price = conn.execute("SELECT price_rub FROM products WHERE id=?", (pid,)).fetchone()["price_rub"]
 
-    items = build_import_payload(
-        title_ru=t["title"], description_ru=t.get("description", ""),
-        offer_id=str(pid), price_rub=float(price or 0),
-        category_id=int(m["ozon_category_id"]), type_id=int(m["type_id"] or 0),
-        attributes=json.loads(m["attributes_json"]), image_urls=main_urls)
+    from openoctopus.listing.builder import build_variant_items
+    from openoctopus.models import variant_dim_index
 
-    result = await ctx.ozon.import_products(items["items"])
+    snap = conn.execute("SELECT raw_json FROM source_snapshots WHERE product_id=? ORDER BY id DESC",
+                        (pid,)).fetchone()
+    raw_pub = RawProduct(**json.loads(snap["raw_json"])) if snap else None
+    opt_map = {r["option_zh"]: dict(r) for r in
+               conn.execute("SELECT * FROM sku_options WHERE product_id=?", (pid,))}
+    base_attrs = json.loads(m["attributes_json"])
+    title_ru, desc_ru = t["title"], t.get("description", "")
+    desc_id, type_id = int(m["ozon_category_id"]), int(m["type_id"] or 0)
+    if raw_pub and raw_pub.skus and opt_map:
+        dim_names = list(raw_pub.skus[0].props.keys())
+        dim = dim_names[variant_dim_index(raw_pub)]
+        groups: dict[str, list] = {}
+        for s in raw_pub.skus:
+            if dim in s.props:
+                groups.setdefault(s.props[dim], []).append(s)
+        sw = {}
+        for r in conn.execute("SELECT label, translated_url, source_url FROM images "
+                              "WHERE product_id=? AND kind='swatch' AND selected=1", (pid,)):
+            sw.setdefault(r["label"], []).append(r["translated_url"] or r["source_url"])
+        variants = []
+        for opt_zh, group in groups.items():
+            o = opt_map.get(opt_zh, {})
+            cny = min((g.price_cny for g in group if g.price_cny), default=0) or raw_pub.price_cny
+            imgs = list(dict.fromkeys(sw.get(opt_zh, []) + main_urls))
+            variants.append({
+                "suffix": opt_zh,
+                "price_rub": round(cny * ctx.settings.price_cny_to_rub),
+                "image_urls": imgs,
+                "color_attr_id": o.get("attr_id") or 0,
+                "color_value": o.get("option_ru") or opt_zh,
+                "color_dict_id": o.get("dict_value_id"),
+            })
+        items = build_variant_items(title_ru, desc_ru, str(pid), desc_id, type_id,
+                                    base_attrs, variants)
+    else:
+        items = build_import_payload(
+            title_ru=title_ru, description_ru=desc_ru,
+            offer_id=str(pid), price_rub=float(price or 0),
+            category_id=desc_id, type_id=type_id,
+            attributes=base_attrs, image_urls=main_urls)["items"]
+
+    result = await ctx.ozon.import_products(items)
     task_id = result.get("result", {}).get("task_id")
     conn.execute("INSERT INTO listings(product_id, import_task_id) VALUES(?,?)", (pid, str(task_id)))
     conn.commit()
@@ -151,7 +242,7 @@ async def handle_publish(ctx, payload: dict) -> None:
     if final == "listed" and price and price > 0:
         try:
             await ctx.ozon.update_price(int(pid), float(price))
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001, S110
             pass  # 价格同步失败不阻塞主流程，人审页可手动改价
 
 

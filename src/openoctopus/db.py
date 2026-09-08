@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS images(
   translated_url TEXT,
   status TEXT NOT NULL DEFAULT 'pending',
   selected INTEGER NOT NULL DEFAULT 1,
+  label TEXT DEFAULT '',
   meta_json TEXT DEFAULT '{}');
 
 CREATE TABLE IF NOT EXISTS category_mappings(
@@ -68,6 +69,15 @@ CREATE TABLE IF NOT EXISTS ozon_categories(
   title TEXT,
   schema_json TEXT DEFAULT '{}',
   synced_at TEXT DEFAULT CURRENT_TIMESTAMP);
+
+CREATE TABLE IF NOT EXISTS sku_options(
+  id INTEGER PRIMARY KEY,
+  product_id INTEGER REFERENCES products(id),
+  option_zh TEXT NOT NULL DEFAULT '',
+  option_ru TEXT NOT NULL DEFAULT '',
+  attr_id INTEGER DEFAULT 0,
+  dict_value_id INTEGER,
+  UNIQUE(product_id, option_zh));
 """
 
 
@@ -92,5 +102,7 @@ def init_db(path: str) -> None:
     img_cols = [r["name"] for r in conn.execute("PRAGMA table_info(images)")]
     if "selected" not in img_cols:
         conn.execute("ALTER TABLE images ADD COLUMN selected INTEGER NOT NULL DEFAULT 1")
+    if "label" not in img_cols:
+        conn.execute("ALTER TABLE images ADD COLUMN label TEXT DEFAULT ''")
     conn.commit()
     conn.close()

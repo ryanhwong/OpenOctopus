@@ -36,3 +36,17 @@ def test_empty_page_raises():
     html = "<html><head><title>1688</title></head><body><p>hi</p></body></html>"
     with pytest.raises(ValueError, match="未找到商品"):
         parse_product_html(html, "https://detail.1688.com/offer/9.html")
+
+
+def test_parse_skus():
+    from pathlib import Path as _P
+
+    rp = parse_product_html(
+        (_P(__file__).parent.parent / "fixtures" / "1688_sku.html").read_text(encoding="utf-8"),
+        "https://detail.1688.com/offer/9.html")
+    assert len(rp.skus) == 2
+    by_color = {s.props["颜色"]: s for s in rp.skus}
+    assert by_color["红色"].price_cny == 12.5
+    assert by_color["蓝色"].price_cny == 13.0
+    assert by_color["红色"].image_url == "https://cbu01.alicdn.com/img/red.jpg"
+    assert by_color["蓝色"].image_url == "https://cbu01.alicdn.com/img/blue.jpg"

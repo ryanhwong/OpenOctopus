@@ -3,6 +3,6 @@
 PATHS = {
     "category_tree": "/v1/description-category/tree",
     "category_attributes": "/v1/description-category/attribute",
-    "import": "/v4/product/import",
-    "import_info": "/v1/product/import/task/info",
+    "import": "/v3/product/import",
+    "import_info": "/v1/product/import/info",
 }

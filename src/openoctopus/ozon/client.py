@@ -33,6 +33,15 @@ class OzonClient:
     async def import_task_info(self, task_id: int) -> dict:
         return await self._post(PATHS["import_info"], {"task_id": task_id})
 
+    async def category_attribute_values(self, attribute_id: int, description_category_id: int,
+                                          type_id: int, limit: int = 100) -> list[dict]:
+        out = await self._post(PATHS["category_attributes"].replace("/attribute", "/attribute/values"),
+                               {"attribute_id": attribute_id,
+                                "description_category_id": description_category_id,
+                                "type_id": type_id, "language": "RU", "limit": limit})
+        res = out.get("result", [])
+        return res if isinstance(res, list) else []
+
     async def update_price(self, product_id: int, price: float,
                            old_price: float | None = None) -> dict:
         item = {"product_id": product_id, "price": str(price)}

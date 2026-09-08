@@ -35,3 +35,13 @@ async def test_pick_and_fill():
     assert cat_id == "15621049:970575627"
     attrs = await fill_attributes(Wrap(llm), "m", None, None, None)
     assert attrs == [{"id": 85, "value": "Термос"}]
+
+
+async def test_translate_and_match_options():
+    from openoctopus.category.suggest import match_option_values, translate_options
+
+    llm = SeqLLM([json.dumps({"options": [{"zh": "红色", "ru": "Красный"}]}),
+                  json.dumps({"matches": [{"ru": "Красный", "dictionary_value_id": 7}]})])
+    assert await translate_options(Wrap(llm), "m", ["红色"]) == {"红色": "Красный"}
+    assert await match_option_values(Wrap(llm), "m", ["Красный"],
+                                     [{"id": 7, "value": "Красный"}]) == {"Красный": 7}

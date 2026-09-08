@@ -45,6 +45,19 @@
       <div class="srcbox"><strong>描述：</strong>{{ t.get('description', {}).get('zh', '') }}</div>
     </section>
 
+    {% if variants %}
+    <section class="card" aria-label="颜色变体" style="margin-bottom:20px">
+      <h2 style="margin-top:0">颜色变体（{{ variants|length }} 组，上架自动拆分+合并同卡）</h2>
+      <table style="width:100%;font-size:13px;border-collapse:collapse">
+        <tr style="color:var(--muted)"><td>颜色</td><td>俄语</td><td>价格 RUB</td><td>规格组合</td></tr>
+        {% for v in variants %}
+        <tr style="border-top:1px solid var(--border)">
+          <td>{{ v.zh }}</td><td>{{ v.ru }}</td><td>{{ v.price_rub }}</td><td>{{ v.combos }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </section>
+    {% endif %}
     <section class="card" aria-label="图片前后对比">
       <h2 style="margin-top:0">图片前后对比（{{ images|length }} 张）</h2>
       {% for img in images %}

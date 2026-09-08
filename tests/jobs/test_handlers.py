@@ -83,6 +83,9 @@ async def test_publish_sends_items_list_not_nested(tmp_path):
     conn.execute(
         "INSERT INTO images(product_id, kind, source_url, translated_url, status) "
         "VALUES(1, 'main', 'https://img/a.jpg', 'https://cdn/a.png', 'uploaded')")
+    conn.execute(
+        "INSERT INTO source_snapshots(product_id, raw_json) VALUES(1, ?)",
+        (json.dumps(dict(SNAPSHOT, skus=[])),))
     conn.commit()
 
     await handle_publish(ctx, {"product_id": 1})
@@ -92,3 +95,40 @@ async def test_publish_sends_items_list_not_nested(tmp_path):
     assert conn.execute("SELECT status FROM products WHERE id=1").fetchone()["status"] == "listed"
     listing = conn.execute("SELECT * FROM listings WHERE product_id=1").fetchone()
     assert listing["import_task_id"] == "1"
+
+
+async def test_publish_variants_multi_items(tmp_path):
+    ctx = make_publish_ctx(tmp_path)
+    conn = get_conn(ctx.db_path)
+    conn.execute(
+        "INSERT INTO products(id, source_url, platform, status, price_rub) "
+        "VALUES(1, 'https://detail.1688.com/offer/1.html', '1688', 'review', 1000)")
+    conn.execute(
+        "INSERT INTO category_mappings(product_id, ozon_category_id, type_id, attributes_json,"
+        " human_confirmed) VALUES(1, '123', '456', '[]', 1)")
+    conn.execute(
+        "INSERT INTO translations(product_id, field, zh, ru) VALUES(1, 'title', '杯', 'Kruzhka')")
+    conn.execute(
+        "INSERT INTO images(product_id, kind, source_url, translated_url, status) "
+        "VALUES(1, 'main', 'https://img/a.jpg', 'https://cdn/a.png', 'uploaded')")
+    snap = dict(SNAPSHOT, skus=[
+        {"props": {"颜色": "红色"}, "price_cny": 10.0, "image_url": None},
+        {"props": {"颜色": "蓝色"}, "price_cny": 12.0, "image_url": None}])
+    conn.execute("INSERT INTO source_snapshots(product_id, raw_json) VALUES(1, ?)",
+                 (json.dumps(snap),))
+    conn.execute(
+        "INSERT INTO sku_options(product_id, option_zh, option_ru, attr_id, dict_value_id) VALUES "
+        "(1, '红色', 'Красный', 85, 7), (1, '蓝色', 'Синий', 85, NULL)")
+    conn.commit()
+    ctx.settings = SimpleNamespace(price_cny_to_rub=12.0)
+
+    await handle_publish(ctx, {"product_id": 1})
+
+    items = ctx.ozon.received_items
+    assert [i["offer_id"] for i in items] == ["1-1", "1-2"]
+    assert [i["price"] for i in items] == ["120", "144"]
+    for i in items:
+        assert 9048 in [a["id"] for a in i["attributes"]]
+    assert items[0]["attributes"][-2] == {"complex_id": 0, "id": 85,
+                                          "values": [{"dictionary_value_id": 7}]}
+    assert conn.execute("SELECT status FROM products WHERE id=1").fetchone()["status"] == "listed"

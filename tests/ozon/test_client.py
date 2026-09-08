@@ -64,7 +64,7 @@ async def test_update_price_sends_correct_body():
         return httpx.Response(200, json={})
 
     ozon = make_ozon(handler)
-    out = await ozon.update_price(558174716, 150.0, old_price=200.0)
+    await ozon.update_price(558174716, 150.0, old_price=200.0)
     await ozon.http.aclose()
     assert "prices" in seen["path"] or "import/prices" in seen["path"]
     prices = seen["body"]["prices"]
