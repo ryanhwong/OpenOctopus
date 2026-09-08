@@ -5,7 +5,8 @@ from openoctopus.llm_json import parse_json
 PICK_PROMPT = (
     "Given a product description and candidate Ozon leaf types, pick the best one. "
     "Candidates are leaf types only; their ids look like "
-    '"<description_category_id>:<type_id>". Respond strict JSON: {"category_id": "<id>"}'
+    '"<description_category_id>:<type_id>". Copy one id VERBATIM from candidates; '
+    'it MUST contain a ":" character. Respond strict JSON: {"category_id": "<id>"}'
 )
 
 ATTRS_PROMPT = (

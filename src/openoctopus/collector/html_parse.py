@@ -21,7 +21,9 @@ def _assert_human_page(soup: BeautifulSoup) -> None:
 def _swatch_img(url: str | None) -> str:
     u = _norm_img(url)
     if u.endswith("_sum.jpg"):
-        u = u[: -len("_sum.jpg")] + ".jpg"
+        u = u[: -len("_sum.jpg")]
+        if u.rsplit(".", 1)[-1].lower() not in ("jpg", "jpeg", "png", "webp"):
+            u += ".jpg"
     return u
 
 
