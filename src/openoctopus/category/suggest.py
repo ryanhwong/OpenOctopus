@@ -49,7 +49,8 @@ async def translate_options(client, model, options: list[str]) -> dict[str, str]
                   {"role": "user", "content": user}],
         response_format={"type": "json_object"}, temperature=0.0)
     return {o["zh"]: o["ru"] for o in
-            json.loads(resp.choices[0].message.content).get("options", [])}
+            parse_json(resp.choices[0].message.content).get("options", [])
+            if isinstance(o, dict) and "zh" in o and "ru" in o}
 
 
 async def match_option_values(client, model, options_ru: list[str],
@@ -65,7 +66,8 @@ async def match_option_values(client, model, options_ru: list[str],
                   {"role": "user", "content": user}],
         response_format={"type": "json_object"}, temperature=0.0)
     return {m["ru"]: m.get("dictionary_value_id") for m in
-            json.loads(resp.choices[0].message.content).get("matches", [])}
+            parse_json(resp.choices[0].message.content).get("matches", [])
+            if isinstance(m, dict) and "ru" in m}
 async def fill_attributes(client, model, schema_items, raw, translated) -> list[dict]:
     user = json.dumps({"schema": schema_items,
                        "product_zh": raw.model_dump() if raw else {},
@@ -76,4 +78,5 @@ async def fill_attributes(client, model, schema_items, raw, translated) -> list[
         messages=[{"role": "system", "content": ATTRS_PROMPT},
                   {"role": "user", "content": user}],
         response_format={"type": "json_object"}, temperature=0.0)
-    return parse_json(resp.choices[0].message.content)["attributes"]
+    attrs = parse_json(resp.choices[0].message.content)["attributes"]
+    return [a for a in attrs if isinstance(a, dict) and "id" in a]

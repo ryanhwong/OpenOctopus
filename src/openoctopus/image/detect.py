@@ -42,7 +42,7 @@ async def detect_and_translate(client, model: str, image_bytes: bytes,
         temperature=0.0,
     )
     data = parse_json(resp.choices[0].message.content)
-    return [_normalize_box(b) for b in data.get("boxes", [])]
+    return [_normalize_box(b) for b in data.get("boxes", []) if isinstance(b, dict)]
 
 
 LEFTOVER_PROMPT = (
