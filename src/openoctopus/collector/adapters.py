@@ -41,6 +41,16 @@ class A1688PlaywrightAdapter:
             page = ctx.new_page()
             page.goto(url, wait_until="domcontentloaded", timeout=60_000)
             page.wait_for_timeout(3_000)
+            # 慢滚整页触发懒加载（详情长图只在滚入视口后才进 DOM）
+            try:
+                height = page.evaluate("document.body.scrollHeight") or 0
+                y = 0
+                while y < height:
+                    y += 600
+                    page.evaluate(f"window.scrollTo(0, {y})")
+                    page.wait_for_timeout(600)
+            except Exception:  # noqa: BLE001, S110
+                pass
             html = page.content()
 
             soup = BeautifulSoup(html, "html.parser")
