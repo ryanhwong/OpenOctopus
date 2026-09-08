@@ -24,3 +24,8 @@ def test_leading_text():
 def test_garbage_raises():
     with pytest.raises(json.JSONDecodeError):
         parse_json("not json at all")
+
+
+def test_null_literal_raises_clear_error():
+    with pytest.raises(TypeError, match="non-object"):
+        parse_json("null")

@@ -13,7 +13,10 @@ class OzonClient:
     async def _post(self, path: str, payload: dict | None = None) -> dict:
         r = await self.http.post(path, json=payload or {}, headers=self.headers)
         r.raise_for_status()
-        return r.json()
+        data = r.json()
+        if data is None:
+            raise RuntimeError(f"ozon returned null body for {path}")
+        return data
 
     async def category_tree(self, language: str = "RU") -> dict:
         return await self._post(PATHS["category_tree"], {"language": language})

@@ -13,4 +13,7 @@ def parse_json(text: str) -> dict:
         start, end = text.find("{"), text.rfind("}")
         if start != -1 and end != -1 and end > start:
             text = text[start:end + 1]
-    return json.loads(text)
+    data = json.loads(text)
+    if not isinstance(data, dict):
+        raise TypeError(f"LLM returned non-object JSON: {text[:150]!r}")
+    return data
