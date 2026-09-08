@@ -66,3 +66,39 @@ async def test_run_once_from_other_thread(db):
     t.join(timeout=10)
     assert "error" not in outcome, outcome.get("error")
     assert outcome.get("worked") is True and calls == [1]
+
+
+async def test_transient_error_backs_off(db, monkeypatch):
+    import asyncio as _asyncio
+
+    slept = []
+
+    async def fake_sleep(s):
+        slept.append(s)
+
+    monkeypatch.setattr(_asyncio, "sleep", fake_sleep)
+
+    async def flaky(ctx, payload):
+        raise RuntimeError("provider overloaded, try later")
+
+    enqueue(db, "flaky", {})
+    r = JobRunner(db, {"flaky": flaky}, backoff_base=45.0)
+    assert await r.run_once() is True
+    assert slept == [45.0]
+    row = db.execute("SELECT status, retries FROM jobs").fetchone()
+    assert row["status"] == "queued" and row["retries"] == 1
+
+
+async def test_perm_error_no_backoff(db, monkeypatch):
+    import asyncio as _asyncio
+
+    slept = []
+    monkeypatch.setattr(_asyncio, "sleep", lambda s: slept.append(s))
+
+    async def bad(ctx, payload):
+        raise ValueError("bad config")
+
+    enqueue(db, "bad", {})
+    r = JobRunner(db, {"bad": bad}, backoff_base=45.0)
+    await r.run_once()
+    assert slept == []
