@@ -53,6 +53,7 @@ class FakeOzon:
     def __init__(self):
         self.received_items = None
         self.received_task_id = None
+        self.price_calls = []
 
     async def import_products(self, items):
         self.received_items = items
@@ -61,6 +62,10 @@ class FakeOzon:
     async def import_task_info(self, task_id):
         self.received_task_id = task_id
         return {"result": {"items": [{"status": "exported", "product_id": 99}]}}
+
+    async def update_price(self, product_id, price, old_price=None):
+        self.price_calls.append((product_id, price))
+        return {}
 
 
 def make_publish_ctx(tmp_path):
@@ -96,6 +101,71 @@ async def test_publish_sends_items_list_not_nested(tmp_path):
     assert conn.execute("SELECT status FROM products WHERE id=1").fetchone()["status"] == "listed"
     listing = conn.execute("SELECT * FROM listings WHERE product_id=1").fetchone()
     assert listing["import_task_id"] == "1"
+
+
+async def test_publish_all_skipped_counts_as_listed(tmp_path):
+    import json as _json
+
+    class SkipOzon(FakeOzon):
+        async def import_task_info(self, task_id):
+            return {"result": {"items": [
+                {"offer_id": "1-1", "status": "skipped"},
+                {"offer_id": "1-2", "status": "skipped"}]}}
+
+    db_path = str(tmp_path / "s.db")
+    init_db(db_path)
+    from types import SimpleNamespace
+    ctx = SimpleNamespace(db_path=db_path, settings=None, ozon=SkipOzon())
+    conn = get_conn(ctx.db_path)
+    conn.execute(
+        "INSERT INTO products(id, source_url, platform, status, price_rub) "
+        "VALUES(1, 'https://detail.1688.com/offer/1.html', '1688', 'review', 100)")
+    conn.execute(
+        "INSERT INTO category_mappings(product_id, ozon_category_id, type_id, attributes_json,"
+        " human_confirmed) VALUES(1, '123', '456', '[]', 1)")
+    conn.execute(
+        "INSERT INTO translations(product_id, field, zh, ru) VALUES(1, 'title', '杯', 'Kruzhka')")
+    conn.execute(
+        "INSERT INTO images(product_id, kind, source_url, translated_url, status) "
+        "VALUES(1, 'main', 'https://img/a.jpg', 'https://cdn/a.png', 'uploaded')")
+    conn.execute(
+        "INSERT INTO source_snapshots(product_id, raw_json) VALUES(1, ?)",
+        (_json.dumps({"source_url": "u", "platform": "1688", "title_zh": "T",
+                      "price_cny": 10, "skus": []}),))
+    conn.commit()
+
+    await handle_publish(ctx, {"product_id": 1})
+
+    assert conn.execute("SELECT status FROM products WHERE id=1").fetchone()["status"] == "listed"
+    res = _json.loads(conn.execute("SELECT result_json FROM listings").fetchone()[0])
+    assert res["status"] == "skipped"
+    assert len(res["items"]) == 2
+
+
+async def test_publish_price_sync_uses_ozon_pid(tmp_path):
+    ctx = make_publish_ctx(tmp_path)
+    conn = get_conn(ctx.db_path)
+    conn.execute(
+        "INSERT INTO products(id, source_url, platform, status, price_rub) "
+        "VALUES(1, 'https://detail.1688.com/offer/1.html', '1688', 'review', 1000)")
+    conn.execute(
+        "INSERT INTO category_mappings(product_id, ozon_category_id, type_id, attributes_json,"
+        " human_confirmed) VALUES(1, '123', '456', '[]', 1)")
+    conn.execute(
+        "INSERT INTO translations(product_id, field, zh, ru) VALUES(1, 'title', '杯', 'Kruzhka')")
+    conn.execute(
+        "INSERT INTO images(product_id, kind, source_url, translated_url, status) "
+        "VALUES(1, 'main', 'https://img/a.jpg', 'https://cdn/a.png', 'uploaded')")
+    conn.execute(
+        "INSERT INTO source_snapshots(product_id, raw_json) VALUES(1, ?)",
+        (json.dumps({"source_url": "u", "platform": "1688", "title_zh": "T",
+                     "price_cny": 10, "skus": []}),))
+    conn.commit()
+
+    await handle_publish(ctx, {"product_id": 1})
+
+    assert ctx.ozon.price_calls and ctx.ozon.price_calls[0][0] == 99
+    assert ctx.ozon.price_calls[0][1] == 1000.0
 
 
 async def test_publish_variants_multi_items(tmp_path):

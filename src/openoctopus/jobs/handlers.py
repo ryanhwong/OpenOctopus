@@ -243,28 +243,39 @@ async def handle_publish(ctx, payload: dict) -> None:
     conn.commit()
 
     status_text, err, ozon_pid = "", "", ""
+    TERMINAL = ("exported", "imported", "failed", "skipped")
+    item_summary = []
     for _ in range(12):
         await asyncio.sleep(5)
         info = await ctx.ozon.import_task_info(int(task_id))
         rows = info.get("result", {}).get("items", [])
-        if rows:
-            status_text = str(rows[0].get("status", ""))
-            ozon_pid = str(rows[0].get("product_id", "") or "")
-            if status_text == "failed":
-                err = json.dumps(rows[0].get("errors", []), ensure_ascii=False)
-                break
-            if status_text in ("exported", "imported"):
-                break
+        if rows and all(str(r.get("status", "")) in TERMINAL for r in rows):
+            item_summary = [{"offer_id": r.get("offer_id"), "status": r.get("status"),
+                             "product_id": r.get("product_id")} for r in rows]
+            failed = [r for r in rows if r.get("status") == "failed"]
+            if failed:
+                status_text = "failed"
+                errs = []
+                for r in failed:
+                    errs.extend(r.get("errors", []))
+                err = json.dumps(errs, ensure_ascii=False)
+                ozon_pid = str(failed[0].get("product_id", "") or "")
+            else:
+                exported = [r for r in rows if r.get("status") in ("exported", "imported")]
+                status_text = "imported" if exported else "skipped"
+                ozon_pid = str((exported[0] if exported else rows[0]).get("product_id", "") or "")
+            break
     conn.execute("UPDATE listings SET result_json=? WHERE product_id=?",
-                 (json.dumps({"status": status_text, "error": err}, ensure_ascii=False), pid))
-    final = "listed" if status_text in ("exported", "imported") else "failed"
+                 (json.dumps({"status": status_text, "error": err,
+                              "items": item_summary}, ensure_ascii=False), pid))
+    final = "listed" if status_text in ("exported", "imported", "skipped") else "failed"
     conn.execute("UPDATE products SET status=?, ozon_product_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
                  (final, ozon_pid or None, pid))
     conn.commit()
-    # 发布成功后同步一次价格到 Ozon（import_payload 含价格，这里确保同步）
-    if final == "listed" and price and price > 0:
+    # 发布成功后同步一次价格到 Ozon（注意用 Ozon 的 product_id，不是本地 id）
+    if final == "listed" and price and price > 0 and ozon_pid:
         try:
-            await ctx.ozon.update_price(int(pid), float(price))
+            await ctx.ozon.update_price(int(ozon_pid), float(price))
         except Exception:  # noqa: BLE001, S110
             pass  # 价格同步失败不阻塞主流程，人审页可手动改价
 
