@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS products(
   height_mm REAL,
   weight_g REAL,
   ozon_product_id TEXT,
+  offer_id_prefix TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP);
 
