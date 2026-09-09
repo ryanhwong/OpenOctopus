@@ -256,9 +256,9 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         row = conn.execute("SELECT status FROM products WHERE id=?", (pid,)).fetchone()
         if row is None:
             raise HTTPException(status_code=404, detail="Product not found")
-        if row["status"] not in ("review", "collected", "generating", "failed"):
+        if row["status"] not in ("review", "collected", "generating", "failed", "listed"):
             return HTMLResponse(
-                "Approve only allowed in review/collected/generating/failed status",
+                "Approve only allowed in review/collected/generating/failed/listed status",
                 status_code=400)
         conn.execute("UPDATE products SET status='publishing' WHERE id=?", (pid,))
         conn.commit()
@@ -290,6 +290,23 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         enqueue(conn, "regenerate_image", {"product_id": pid, "image_id": imgid,
                                             "prompt_override": prompt_override.strip()})
         return RedirectResponse(f"/products/{pid}", status_code=303)
+
+    @app.post("/products/publish-batch")
+    async def publish_batch(request: Request):
+        form = await request.form()
+        conn = get_conn(ctx.db_path)
+        n = 0
+        for pid in form.getlist("pid"):
+            if not str(pid).isdigit():
+                continue
+            row = conn.execute("SELECT status FROM products WHERE id=?", (int(pid),)).fetchone()
+            if row is None:
+                continue
+            conn.execute("UPDATE products SET status='publishing' WHERE id=?", (int(pid),))
+            enqueue(conn, "publish", {"product_id": int(pid)})
+            n += 1
+        conn.commit()
+        return RedirectResponse("/", status_code=303)
 
     @app.post("/jobs/{jid}/retry")
     def retry(jid: int):

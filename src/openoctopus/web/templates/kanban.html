@@ -45,15 +45,24 @@
   </form>
 </div>
 
+<form id="batchform" method="post" action="/products/publish-batch"
+      style="margin:0 0 12px;display:flex;gap:10px;align-items:center">
+  <button class="btn btn-cta" type="submit">批量同步选中到线上</button>
+  <span class="muted">勾选卡片后一键重新上架（改价/改属性后同步用）</span>
+</form>
 <div class="cols">
 {% for label, items in groups %}
   <section class="col" aria-label="{{ label }}">
     <div class="col-head">{{ label }} <span class="count">{{ items|length }}</span></div>
     {% for it in items %}
-      <a class="pcard" href="/products/{{ it['id'] }}" title="{{ it['source_url'] }}">
-        <span class="pid">#{{ it['id'] }}</span><br>
-        <span class="url">{{ it['source_url'][:48] }}</span>
-      </a>
+      <div class="pcard">
+        <input type="checkbox" name="pid" value="{{ it['id'] }}" form="batchform" title="选中批量同步"
+               style="width:auto;margin:0 6px 0 0">
+        <a href="/products/{{ it['id'] }}" title="{{ it['source_url'] }}">
+          <span class="pid">#{{ it['id'] }}</span><br>
+          <span class="url">{{ it['source_url'][:48] }}</span>
+        </a>
+      </div>
       {% set job = jobs.get(it['id']) %}
       {% if job and job['status'] == 'failed' %}
       <div class="joberr">失败({{ job['type'] }}, {{ job['retries'] }}次)：{{ (job['error'] or '')[:120] }}

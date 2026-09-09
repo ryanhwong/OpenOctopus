@@ -4,7 +4,7 @@ MERGE_ATTR_ID = 9048
 def build_variant_items(title_ru: str, description_ru: str, offer_id: str,
                         category_id: int, type_id: int, base_attributes: list[dict],
                         variants: list[dict], currency_code: str = "RUB",
-                        dims: dict | None = None) -> list[dict]:
+                        dims: dict | None = None, model_name: str = "") -> list[dict]:
     """多色变体 items：同名同类目，除颜色外属性一致 + 9048 合并属性。
 
     variants 每项: {suffix, price_rub, image_urls, color_attr_id,
@@ -12,15 +12,17 @@ def build_variant_items(title_ru: str, description_ru: str, offer_id: str,
     """
     items = []
     for i, v in enumerate(variants, 1):
-        attrs = [dict(a) for a in base_attributes]
+        attrs = [dict(a) for a in base_attributes
+                 if int(a.get("id", 0)) != int(v.get("color_attr_id") or 0)]
         if v.get("color_attr_id"):
             if v.get("color_dict_id") is not None:
                 cv = [{"dictionary_value_id": v["color_dict_id"]}]
             else:
                 cv = [{"value": v["color_value"]}]
             attrs.append({"complex_id": 0, "id": int(v["color_attr_id"]), "values": cv})
-        if i == 1:
-            attrs.append({"complex_id": 0, "id": MERGE_ATTR_ID, "values": [{"value": "да"}]})
+        if i == 1 and model_name:
+            attrs.append({"complex_id": 0, "id": MERGE_ATTR_ID,
+                          "values": [{"value": model_name[:200]}]})
         items.append({
             "offer_id": f"{offer_id}-{i}",
             "name": title_ru[:200],

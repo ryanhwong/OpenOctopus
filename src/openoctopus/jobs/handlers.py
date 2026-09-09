@@ -226,7 +226,8 @@ async def handle_publish(ctx, payload: dict) -> None:
             })
         currency = (getattr(ctx.settings, "price_currency", "RUB") or "RUB").upper()
         items = build_variant_items(title_ru, desc_ru, str(pid), desc_id, type_id,
-                                    base_attrs, variants, currency, dims_arg)
+                                    base_attrs, variants, currency, dims_arg,
+                                    model_name=title_ru)
     else:
         items = build_import_payload(
             title_ru=title_ru, description_ru=desc_ru,

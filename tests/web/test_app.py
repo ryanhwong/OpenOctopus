@@ -225,3 +225,29 @@ def test_regenerate_wrong_status_returns_400(tmp_path):
     _insert_product(db_path, "new")
     r = c.post("/products/1/regenerate", follow_redirects=False)
     assert r.status_code == 400
+
+
+def test_approve_from_listed_and_failed_allowed(tmp_path):
+    c, db_path = make_client(tmp_path)
+    for st in ("listed", "failed"):
+        _insert_product(db_path, st)
+        r = c.post("/products/1/approve", follow_redirects=False)
+        assert r.status_code == 303
+        conn = get_conn(db_path)
+        conn.execute("DELETE FROM products WHERE id=1")
+        conn.execute("DELETE FROM jobs WHERE payload_json LIKE '%\"product_id\": 1%'")
+        conn.commit()
+
+
+def test_publish_batch_enqueues_selected(tmp_path):
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "review")
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO products(id, source_url, status) VALUES(2, 'https://x/2', 'listed')")
+    conn.commit()
+    r = c.post("/products/publish-batch", data={"pid": ["1", "2", "zzz"]},
+               follow_redirects=False)
+    assert r.status_code == 303
+    n = conn.execute("SELECT count(*) FROM jobs WHERE type='publish'").fetchone()[0]
+    assert n == 2
+    assert conn.execute("SELECT status FROM products WHERE id=1").fetchone()["status"] == "publishing"
