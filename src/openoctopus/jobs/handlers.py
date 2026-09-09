@@ -184,6 +184,7 @@ async def handle_publish(ctx, payload: dict) -> None:
     dims_arg = {"length": dims["length_mm"], "width": dims["width_mm"],
                 "height": dims["height_mm"], "weight": dims["weight_g"]} if len(dims) == 4 else None
     price = conn.execute("SELECT price_rub FROM products WHERE id=?", (pid,)).fetchone()["price_rub"]
+    stock = conn.execute("SELECT stock FROM products WHERE id=?", (pid,)).fetchone()["stock"] or 0
 
     from openoctopus.listing.builder import build_variant_items
     from openoctopus.models import variant_dim_index
@@ -210,13 +211,17 @@ async def handle_publish(ctx, payload: dict) -> None:
                               "WHERE product_id=? AND kind='swatch' AND selected=1", (pid,)):
             sw.setdefault(r["label"], []).append(r["translated_url"] or r["source_url"])
         variants = []
+        user_price = float(price) if price else 0
         for opt_zh, group in groups.items():
             o = opt_map.get(opt_zh, {})
-            cny = min((g.price_cny for g in group if g.price_cny), default=0) or raw_pub.price_cny
-            if getattr(ctx.settings, "price_currency", "RUB").upper() == "RUB":
-                vprice = round(cny * ctx.settings.price_cny_to_rub)
+            if user_price > 0:
+                vprice = round(user_price, 2)
             else:
-                vprice = round(cny, 2)
+                cny = min((g.price_cny for g in group if g.price_cny), default=0) or raw_pub.price_cny
+                if getattr(ctx.settings, "price_currency", "RUB").upper() == "RUB":
+                    vprice = round(cny * ctx.settings.price_cny_to_rub)
+                else:
+                    vprice = round(cny, 2)
             imgs = list(dict.fromkeys(sw.get(opt_zh, []) + gallery_urls))
             variants.append({
                 "suffix": opt_zh,
@@ -280,6 +285,23 @@ async def handle_publish(ctx, payload: dict) -> None:
             await ctx.ozon.update_price(int(ozon_pid), float(price))
         except Exception:  # noqa: BLE001, S110
             pass  # 价格同步失败不阻塞主流程，人审页可手动改价
+    # 同步库存到 Ozon（Cel Small 仓库，cross-border 专用）
+    if final == "listed" and stock > 0 and item_summary:
+        WH_ID = 1020000812944000
+        stocks_payload = []
+        for it in item_summary:
+            if it.get("status") in ("imported", "exported") and it.get("product_id"):
+                stocks_payload.append({
+                    "offer_id": it["offer_id"],
+                    "product_id": it["product_id"],
+                    "stock": stock,
+                    "warehouse_id": WH_ID,
+                })
+        if stocks_payload:
+            try:
+                await ctx.ozon.set_stocks(stocks_payload)
+            except Exception:  # noqa: BLE001, S110
+                pass
 
 
 def persist_raw_product(conn, rp) -> int:

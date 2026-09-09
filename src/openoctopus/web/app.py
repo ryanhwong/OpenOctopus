@@ -194,7 +194,8 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
     @app.post("/products/{pid}/edit")
     async def edit(request: Request, pid: int, title_ru: str = Form(...),
                    description_ru: str = Form(...),
-                   price_rub: str = Form(""), ozon_category_id: str = Form(...),
+                   price_rub: str = Form(""), stock: str = Form("0"),
+                   ozon_category_id: str = Form(...),
                    attributes_json: str = Form("{}"), length_mm: str = Form(""),
                    width_mm: str = Form(""), height_mm: str = Form(""),
                    weight_g: str = Form("")):
@@ -227,6 +228,11 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         upsert_translation(conn, pid, "description", "", description_ru)
         if price_rub_val is not None:
             conn.execute("UPDATE products SET price_rub=? WHERE id=?", (price_rub_val, pid))
+        try:
+            stock_val = int(stock) if stock.strip() else 0
+        except ValueError:
+            stock_val = 0
+        conn.execute("UPDATE products SET stock=? WHERE id=?", (stock_val, pid))
         dims = {}
         for field, key in (("length_mm", length_mm), ("width_mm", width_mm),
                            ("height_mm", height_mm), ("weight_g", weight_g)):

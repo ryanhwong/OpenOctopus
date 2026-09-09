@@ -196,7 +196,8 @@ async def test_publish_variants_multi_items(tmp_path):
 
     items = ctx.ozon.received_items
     assert [i["offer_id"] for i in items] == ["1-1", "1-2"]
-    assert [i["price"] for i in items] == ["120", "144"]
+    # 用户设了 price_rub=1000，所有变体统一用这个价格
+    assert [i["price"] for i in items] == ["1000.0", "1000.0"]
     assert 9048 in [a["id"] for a in items[0]["attributes"]]
     assert 9048 in [a["id"] for a in items[1]["attributes"]]
     assert items[0]["attributes"][-2] == {"complex_id": 0, "id": 85,

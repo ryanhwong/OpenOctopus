@@ -51,3 +51,7 @@ class OzonClient:
         if old_price and old_price > price:
             item["old_price"] = str(old_price)
         return await self._post("/v1/product/import/prices", {"prices": [item]})
+
+    async def set_stocks(self, stocks: list[dict]) -> dict:
+        """stocks 每项: {offer_id, product_id, stock, warehouse_id}"""
+        return await self._post("/v2/products/stocks", {"stocks": stocks})

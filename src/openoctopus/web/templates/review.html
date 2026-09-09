@@ -24,6 +24,10 @@
       <input id="f-price" name="price_rub" type="text" inputmode="decimal"
              value="{{ p.get('price_rub') or '' }}" placeholder="留空则用汇率自动换算价">
 
+      <label for="f-stock">库存 (每 SKU 同量，0=不改)</label>
+      <input id="f-stock" name="stock" type="number" min="0" step="1"
+             value="{{ p.get('stock') or 0 }}" style="margin:4px 0 14px">
+
       <label>尺寸重量（长mm × 宽mm × 高mm，重量g；填全才传 Ozon，包装另计）</label>
       <div style="display:flex;gap:8px">
         <input name="length_mm" type="text" inputmode="decimal" placeholder="长"

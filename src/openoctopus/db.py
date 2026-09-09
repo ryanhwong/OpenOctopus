@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS products(
   platform TEXT NOT NULL DEFAULT '1688',
   status TEXT NOT NULL DEFAULT 'new',
   price_rub REAL,
+  stock INTEGER DEFAULT 0,
   length_mm REAL,
   width_mm REAL,
   height_mm REAL,
