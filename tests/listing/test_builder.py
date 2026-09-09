@@ -41,13 +41,16 @@ def test_build_variant_items():
     assert [i["offer_id"] for i in items] == ["7-1", "7-2"]
     assert [i["price"] for i in items] == ["150", "160"]
     assert items[0]["images"] == ["https://c/r.png"]
-    ids0 = [a["id"] for a in items[0]["attributes"]]
-    ids1 = [a["id"] for a in items[1]["attributes"]]
-    assert MERGE_ATTR_ID in ids0 and MERGE_ATTR_ID not in ids1
+    # 9048 в каждом变体（型号名必填）
+    for item in items:
+        ids = [a["id"] for a in item["attributes"]]
+        assert MERGE_ATTR_ID in ids
     assert items[0]["attributes"][-1] == {"complex_id": 0, "id": MERGE_ATTR_ID,
                                           "values": [{"value": "Термос"}]}
+    assert items[1]["attributes"][-1] == {"complex_id": 0, "id": MERGE_ATTR_ID,
+                                          "values": [{"value": "Термос"}]}
     # 变体颜色去重了基础同 id 属性
-    assert ids1.count(85) == 1
+    assert ids.count(85) == 1
 
 
 def test_build_variant_items_dedupes_base_color():

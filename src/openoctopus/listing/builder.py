@@ -20,7 +20,7 @@ def build_variant_items(title_ru: str, description_ru: str, offer_id: str,
             else:
                 cv = [{"value": v["color_value"]}]
             attrs.append({"complex_id": 0, "id": int(v["color_attr_id"]), "values": cv})
-        if i == 1 and model_name:
+        if model_name:
             attrs.append({"complex_id": 0, "id": MERGE_ATTR_ID,
                           "values": [{"value": model_name[:200]}]})
         items.append({
