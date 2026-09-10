@@ -13,6 +13,13 @@ class R2Storage:
         self.s3.put_object(Bucket=self.bucket, Key=key, Body=data, ContentType=mime)
         return f"{self.public_base}/{key}"
 
+    def exists(self, key: str) -> bool:
+        try:
+            self.s3.head_object(Bucket=self.bucket, Key=key)
+            return True
+        except Exception:  # noqa: BLE001
+            return False
+
 
 def make_r2(settings: Settings) -> R2Storage | None:
     if not (settings.r2_bucket and settings.r2_access_key_id and settings.r2_public_base_url):

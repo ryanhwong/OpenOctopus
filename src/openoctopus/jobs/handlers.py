@@ -131,8 +131,10 @@ async def _resolve_sku_options(ctx, conn, pid: int, raw, cat_key: str,
     dim = dim_names[variant_dim_index(raw)]
     options = sorted({sku.props[dim] for sku in raw.skus if dim in sku.props})
     opt_ru = await translate_options(ctx.llm_client, s.content_model, options)
-    color_attr = next((a for a in attrs_schema
-                       if "цвет" in str(a.get("name", "")).lower()), None)
+    color_attrs = [a for a in attrs_schema
+                   if "цвет" in str(a.get("name", "")).lower()]
+    color_attr = (next((a for a in color_attrs if int(a.get("dictionary_id") or 0) > 0), None)
+                  or (color_attrs[0] if color_attrs else None))
     attr_id, matches = 0, {}
     if color_attr:
         attr_id = int(color_attr.get("id", 0))
@@ -152,6 +154,47 @@ async def _resolve_sku_options(ctx, conn, pid: int, raw, cat_key: str,
             "option_ru=excluded.option_ru, attr_id=excluded.attr_id, "
             "dict_value_id=excluded.dict_value_id",
             (pid, o, ru, attr_id, matches.get(ru)))
+
+
+def _enrich_items(ctx, items: list[dict], *, pid: int, title_ru: str, desc_ru: str,
+                  gallery_urls: list[str], dims_arg: dict | None, title_zh: str) -> None:
+    """补充属性：注释、材质/尺寸、视频链接、Rich-контент（就地修改 items）。"""
+    try:
+        from openoctopus.listing.enrich import (
+            build_extra_attributes,
+            build_rich_content,
+            safe_hashtags,
+        )
+
+        material = ("textile" if any(w in (title_zh or "")
+                                     for w in ("尼龙", "尼龍", "编织", "編織"))
+                    else "silicone")
+        hint = "Нейлон" if material == "textile" else "Силикон"
+        rich = build_rich_content(title_ru, desc_ru, gallery_urls, material_hint=hint)
+        video_url = ""
+        if ctx.storage and gallery_urls:
+            key = f"products/{pid}/video.mp4"
+            if callable(getattr(ctx.storage, "exists", None)) and ctx.storage.exists(key):
+                video_url = f"{ctx.storage.public_base}/{key}"
+            else:
+                from openoctopus.image.video import make_slideshow
+
+                data = make_slideshow(gallery_urls)
+                if data:
+                    video_url = ctx.storage.put(key, data, mime="video/mp4")
+        tags = safe_hashtags("ремешок", "умныечасы", "аксессуар",
+                             "нейлон" if material == "textile" else "силикон")
+        dims = dims_arg or {}
+        extra = build_extra_attributes(
+            description_ru=desc_ru, title_ru=title_ru,
+            weight_g=dims.get("weight"), length_mm=dims.get("length"),
+            width_mm=dims.get("width"), height_mm=dims.get("height"),
+            material=material, video_url=video_url, rich_content=rich, hashtags=tags)
+    except Exception:  # noqa: BLE001
+        return
+    for it in items:
+        have = {a.get("id") for a in it.get("attributes", [])}
+        it.setdefault("attributes", []).extend(a for a in extra if a["id"] not in have)
 
 
 async def handle_publish(ctx, payload: dict) -> None:
@@ -243,6 +286,10 @@ async def handle_publish(ctx, payload: dict) -> None:
             attributes=base_attrs, image_urls=gallery_urls,
             currency_code=(getattr(ctx.settings, "price_currency", "RUB") or "RUB").upper(),
             dims=dims_arg)["items"]
+
+    _enrich_items(ctx, items, pid=pid, title_ru=title_ru, desc_ru=desc_ru,
+                  gallery_urls=gallery_urls, dims_arg=dims_arg,
+                  title_zh=(raw_pub.title_zh if raw_pub else ""))
 
     result = await ctx.ozon.import_products(items)
     task_id = result.get("result", {}).get("task_id")
