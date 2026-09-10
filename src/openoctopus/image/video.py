@@ -21,18 +21,26 @@ def _ffmpeg() -> str:
 
 
 def make_slideshow(image_urls: list[str], duration_per: float = 3.0,
-                   max_images: int = 6) -> bytes:
+                   max_images: int = 6, prefer_host: str = "") -> bytes:
     """下载图片并合成 1080x1080 幻灯片 MP4，返回字节。失败返回 b""。"""
-    urls = [u for u in image_urls if u][:max_images]
+    urls = [u for u in image_urls if u]
+    if prefer_host:
+        hosted = [u for u in urls if u.startswith(prefer_host)]
+        if len(hosted) >= 2:
+            urls = hosted
+    urls = urls[:max_images]
     if len(urls) < 2:
         return b""
     ffmpeg = _ffmpeg()
+    headers = {"Referer": "https://detail.1688.com/",
+               "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"}
     try:
         with tempfile.TemporaryDirectory() as td:
             imgs = []
             for i, u in enumerate(urls):
                 p = os.path.join(td, f"i{i}.jpg")
-                r = httpx.get(u, timeout=45, follow_redirects=True)
+                r = httpx.get(u, timeout=45, follow_redirects=True, headers=headers)
                 r.raise_for_status()
                 with open(p, "wb") as f:
                     f.write(r.content)

@@ -179,7 +179,8 @@ def _enrich_items(ctx, items: list[dict], *, pid: int, title_ru: str, desc_ru: s
             else:
                 from openoctopus.image.video import make_slideshow
 
-                data = make_slideshow(gallery_urls)
+                data = make_slideshow(
+                    gallery_urls, prefer_host=getattr(ctx.storage, "public_base", ""))
                 if data:
                     video_url = ctx.storage.put(key, data, mime="video/mp4")
         tags = safe_hashtags("ремешок", "умныечасы", "аксессуар",
