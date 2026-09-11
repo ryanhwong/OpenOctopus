@@ -66,8 +66,7 @@
             </span>
             <span class="pinfo">
               <span class="ptitle">{{ it['title_ru'] or it['source_url'] }}</span>
-              <span class="pmeta">#{{ it['id'] }}{% if it['price_rub'] %} · {{ it['price_rub'] }} {{ currency }}
-                {% endif %}{% if it['status'] != 'review' %} · {{ it['status'] }}{% endif %}</span>
+              <span class="pmeta">#{{ it['id'] }}{% if it['price_rub'] %} · {{ it['price_rub'] }} {{ currency }}{% endif %}</span>
             </span>
           </a>
         </div>
