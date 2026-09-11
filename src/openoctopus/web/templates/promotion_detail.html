@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}促销详情 - OpenOctopus{% endblock %}
+{% block nav %}<a class="btn btn-ghost" href="/promotions">← 返回促销列表</a>{% endblock %}
+{% block content %}
+<div class="card" style="margin-bottom:20px">
+  <h1 style="margin-bottom:4px">{{ promo['title'] }}</h1>
+  <p class="muted" style="margin:0">
+    {{ (promo['date_start'] or '')[:10] }} ~ {{ (promo['date_end'] or '')[:10] }}
+    · 可参加 {{ promo['potential'] }} 个 · 已参加 {{ promo['participating_count'] }} 个
+  </p>
+  <p class="muted" style="margin:6px 0 0">
+    勾选商品并填促销价（不得超过「要求价 ≤」列），点「参加选中」。
+    盈亏列：<span class="rating rating-good">✓</span> 促销价不低于保本价 ·
+    <span class="rating rating-bad">✕</span> 会亏本 ·
+    <span class="muted">—</span> 非本店商品（无成本数据，谨慎参加）
+  </p>
+</div>
+
+{% if rows %}
+<div class="card">
+  <form method="post" action="/promotions/{{ promo['action_id'] }}/activate">
+    <div class="tablewrap">
+      <table class="dtable">
+        <thead>
+          <tr><th></th><th>商品</th><th>现价</th><th>要求价 ≤</th><th>保本价</th><th>盈亏</th>
+            <th>促销价</th><th>助推</th><th>库存</th></tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td>
+              <input type="checkbox" name="sel_{{ r['product_id'] }}" value="1"
+                     aria-label="选择商品 {{ r['product_id'] }}"
+                     {% if r['action_price'] %}checked{% endif %} style="width:auto;margin:0">
+            </td>
+            <td>
+              {% if r['local_id'] %}
+              <a href="/products/{{ r['local_id'] }}">#{{ r['local_id'] }} {{ (r['title_ru'] or '')[:30] }}</a>
+              {% else %}<span class="muted">{{ r['product_id'] }}</span>{% endif %}
+            </td>
+            <td>{{ r['price'] }}</td>
+            <td><strong>{{ r['max_action_price'] }}</strong></td>
+            <td>{% if r['break_even'] %}{{ r['break_even'] }}{% else %}<span class="muted">—</span>{% endif %}</td>
+            <td>
+              {% if r['break_even'] is none %}<span class="muted">—</span>
+              {% elif r['ok'] %}<span class="rating rating-good">✓</span>
+              {% else %}<span class="rating rating-bad">✕</span>{% endif %}
+            </td>
+            <td>
+              <input type="number" step="0.01" min="0" name="price_{{ r['product_id'] }}"
+                     value="{{ r['action_price'] or r['max_action_price'] }}"
+                     style="width:92px;margin:0" aria-label="促销价 {{ r['product_id'] }}">
+            </td>
+            <td class="muted">{{ r['current_boost'] }} → {{ r['max_boost'] }}</td>
+            <td>{{ r['stock'] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-cta" type="submit">参加选中</button>
+      <button class="btn btn-ghost" type="submit"
+              formaction="/promotions/{{ promo['action_id'] }}/deactivate"
+              formnovalidate>退出选中</button>
+      <span class="muted">促销价必须大于 0 且不超过要求价，否则 Ozon 会驳回</span>
+    </div>
+  </form>
+</div>
+{% else %}
+<div class="card"><p class="muted">该活动暂无候选商品。</p></div>
+{% endif %}
+{% endblock %}

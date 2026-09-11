@@ -547,6 +547,102 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
             "rows": rows, "summary": summary, "currency":
             (ctx.settings.price_currency or "RUB").upper()})
 
+    @app.get("/promotions", response_class=HTMLResponse)
+    def promotions(request: Request):
+        conn = get_conn(ctx.db_path)
+        rows = []
+        for p_ in conn.execute("SELECT * FROM promotions ORDER BY date_end"):
+            n = conn.execute("SELECT count(*) FROM promotion_candidates WHERE action_id=?",
+                             (p_["action_id"],)).fetchone()[0]
+            rows.append({**dict(p_), "candidates": n})
+        return TEMPLATES.TemplateResponse(request, "promotions.html", {"rows": rows})
+
+    @app.post("/promotions/refresh")
+    def promotions_refresh():
+        conn = get_conn(ctx.db_path)
+        enqueue(conn, "refresh_promotions", {})
+        conn.commit()
+        return RedirectResponse("/promotions", status_code=303)
+
+    @app.get("/promotions/{action_id}", response_class=HTMLResponse)
+    def promotion_detail(request: Request, action_id: int):
+        from openoctopus.listing.pricing import price_advice
+
+        conn = get_conn(ctx.db_path)
+        promo = conn.execute("SELECT * FROM promotions WHERE action_id=?",
+                             (action_id,)).fetchone()
+        if promo is None:
+            raise HTTPException(status_code=404, detail="Promotion not found")
+        pid_map: dict[str, int] = {}
+        for r in conn.execute("SELECT product_id, result_json FROM listings ORDER BY id"):
+            try:
+                for it in (_json.loads(r["result_json"] or "{}").get("items") or []):
+                    if it.get("product_id"):
+                        pid_map.setdefault(str(it["product_id"]), r["product_id"])
+            except _json.JSONDecodeError:
+                continue
+        for r in conn.execute("SELECT id, ozon_product_id FROM products "
+                              "WHERE ozon_product_id IS NOT NULL"):
+            pid_map.setdefault(str(r["ozon_product_id"]), r["id"])
+        costs: dict[int, float] = {}
+        for r in conn.execute("SELECT p.id AS pid, s.raw_json FROM products p "
+                              "JOIN source_snapshots s ON s.product_id = p.id"):
+            try:
+                cny = float(_json.loads(r["raw_json"]).get("price_cny") or 0)
+            except (ValueError, _json.JSONDecodeError):
+                cny = 0
+            costs[r["pid"]] = max(costs.get(r["pid"], 0.0), cny)
+        titles: dict[int, str] = {}
+        for r in conn.execute("SELECT product_id, ru FROM translations "
+                              "WHERE field='title'"):
+            titles[r["product_id"]] = r["ru"]
+        rows = []
+        for c in conn.execute("SELECT * FROM promotion_candidates WHERE action_id=? "
+                              "ORDER BY max_action_price DESC, product_id", (action_id,)):
+            local = pid_map.get(str(c["product_id"]))
+            be = None
+            if local and costs.get(local):
+                be = price_advice(
+                    costs[local], commission_pct=ctx.settings.ozon_commission_pct,
+                    shipping_cny=ctx.settings.shipping_cny,
+                    target_margin_pct=ctx.settings.target_margin_pct)["break_even_cny"]
+            rows.append({**dict(c), "local_id": local, "title_ru": titles.get(local, ""),
+                         "break_even": be,
+                         "ok": be is None or float(c["max_action_price"] or 0) >= be})
+        return TEMPLATES.TemplateResponse(request, "promotion_detail.html",
+                                          {"promo": dict(promo), "rows": rows})
+
+    @app.post("/promotions/{action_id}/activate")
+    async def promotion_activate(request: Request, action_id: int):
+        form = await request.form()
+        products = []
+        for key in form:
+            if not key.startswith("sel_") or not key[4:].isdigit():
+                continue
+            pid = key[4:]
+            try:
+                price = float(str(form.get(f"price_{pid}") or "").strip())
+            except ValueError:
+                continue
+            products.append({"product_id": int(pid), "action_price": round(price, 2)})
+        if products:
+            conn = get_conn(ctx.db_path)
+            enqueue(conn, "promotion_activate",
+                    {"action_id": action_id, "products": products})
+            conn.commit()
+        return RedirectResponse(f"/promotions/{action_id}", status_code=303)
+
+    @app.post("/promotions/{action_id}/deactivate")
+    async def promotion_deactivate(request: Request, action_id: int):
+        form = await request.form()
+        ids = [int(k[4:]) for k in form if k.startswith("sel_") and k[4:].isdigit()]
+        if ids:
+            conn = get_conn(ctx.db_path)
+            enqueue(conn, "promotion_deactivate",
+                    {"action_id": action_id, "product_ids": ids})
+            conn.commit()
+        return RedirectResponse(f"/promotions/{action_id}", status_code=303)
+
     @app.post("/dashboard/refresh")
     def dashboard_refresh():
         conn = get_conn(ctx.db_path)

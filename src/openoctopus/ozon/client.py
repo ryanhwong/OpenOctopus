@@ -68,3 +68,24 @@ class OzonClient:
         out = await self._post("/v5/product/info/prices",
                                {"filter": {"offer_id": offer_ids}, "limit": len(offer_ids) or 1})
         return out.get("items", []) if isinstance(out, dict) else []
+
+    async def actions_list(self) -> list[dict]:
+        r = await self.http.request("GET", "/v1/actions", headers=self.headers)
+        r.raise_for_status()
+        data = r.json()
+        return data.get("result", []) if isinstance(data, dict) else []
+
+    async def action_candidates(self, action_id: int, limit: int = 500,
+                                offset: int = 0) -> list[dict]:
+        out = await self._post("/v1/actions/candidates",
+                               {"action_id": action_id, "limit": limit, "offset": offset})
+        res = out.get("result") or {}
+        return res.get("products", []) if isinstance(res, dict) else []
+
+    async def action_activate(self, action_id: int, products: list[dict]) -> dict:
+        return await self._post("/v1/actions/products/activate",
+                                {"action_id": action_id, "products": products})
+
+    async def action_deactivate(self, action_id: int, product_ids: list[int]) -> dict:
+        return await self._post("/v1/actions/products/deactivate",
+                                {"action_id": action_id, "product_ids": product_ids})

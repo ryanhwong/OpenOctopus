@@ -374,3 +374,55 @@ async def test_refresh_metrics_stores_rows(tmp_path):
     assert rows[0]["rating"] == 100
     assert rows[0]["availability"] == "AVAILABLE"
     assert rows[0]["stock"] == 5
+
+
+async def test_refresh_promotions_stores_rows(tmp_path):
+    from openoctopus.jobs.handlers import handle_refresh_promotions
+
+    class FakeOzon:
+        async def actions_list(self):
+            return [{"id": 7, "title": "Бустинг", "date_start": "2026-01-01",
+                     "date_end": "2026-12-31", "potential_products_count": 5,
+                     "is_participating": False, "participating_products_count": 0,
+                     "description": "d"}]
+
+        async def action_candidates(self, action_id, limit=500, offset=0):
+            return [{"id": 100, "price": 40, "action_price": 0, "max_action_price": 33,
+                     "current_boost": 0, "max_boost": 55, "min_boost": 15, "stock": 5}]
+
+    db_path = str(tmp_path / "pr.db")
+    init_db(db_path)
+    ctx = SimpleNamespace(db_path=db_path, ozon=FakeOzon())
+    await handle_refresh_promotions(ctx, {})
+    conn = get_conn(db_path)
+    promo = conn.execute("SELECT * FROM promotions").fetchone()
+    assert promo["action_id"] == 7 and promo["potential"] == 5
+    cand = conn.execute("SELECT * FROM promotion_candidates").fetchone()
+    assert cand["product_id"] == "100" and cand["max_action_price"] == 33
+
+
+async def test_promotion_activate_deactivate_pass_through(tmp_path):
+    from openoctopus.jobs.handlers import (
+        handle_promotion_activate,
+        handle_promotion_deactivate,
+    )
+
+    class FakeOzon:
+        def __init__(self):
+            self.activated = None
+            self.deactivated = None
+
+        async def action_activate(self, action_id, products):
+            self.activated = (action_id, products)
+
+        async def action_deactivate(self, action_id, product_ids):
+            self.deactivated = (action_id, product_ids)
+
+    oz = FakeOzon()
+    ctx = SimpleNamespace(db_path=str(tmp_path / "x.db"), ozon=oz)
+    await handle_promotion_activate(ctx, {"action_id": 7,
+                                          "products": [{"product_id": 100,
+                                                        "action_price": 33.0}]})
+    assert oz.activated == (7, [{"product_id": 100, "action_price": 33.0}])
+    await handle_promotion_deactivate(ctx, {"action_id": 7, "product_ids": ["100"]})
+    assert oz.deactivated == (7, [100])

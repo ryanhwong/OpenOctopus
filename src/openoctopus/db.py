@@ -111,6 +111,30 @@ CREATE TABLE IF NOT EXISTS metrics(
   availability TEXT DEFAULT '',
   reason TEXT DEFAULT '',
   refreshed_at TEXT DEFAULT CURRENT_TIMESTAMP);
+
+CREATE TABLE IF NOT EXISTS promotions(
+  action_id INTEGER PRIMARY KEY,
+  title TEXT DEFAULT '',
+  date_start TEXT DEFAULT '',
+  date_end TEXT DEFAULT '',
+  potential INTEGER DEFAULT 0,
+  participating INTEGER DEFAULT 0,
+  participating_count INTEGER DEFAULT 0,
+  description TEXT DEFAULT '',
+  fetched_at TEXT DEFAULT CURRENT_TIMESTAMP);
+
+CREATE TABLE IF NOT EXISTS promotion_candidates(
+  id INTEGER PRIMARY KEY,
+  action_id INTEGER,
+  product_id TEXT,
+  price REAL DEFAULT 0,
+  action_price REAL DEFAULT 0,
+  max_action_price REAL DEFAULT 0,
+  current_boost INTEGER DEFAULT 0,
+  max_boost INTEGER DEFAULT 0,
+  min_boost INTEGER DEFAULT 0,
+  stock INTEGER DEFAULT 0,
+  fetched_at TEXT DEFAULT CURRENT_TIMESTAMP);
 """
 
 

@@ -642,6 +642,59 @@ async def handle_refresh_metrics(ctx, payload: dict) -> None:
     conn.commit()
 
 
+async def handle_refresh_promotions(ctx, payload: dict) -> None:
+    """拉取活动列表与候选商品（含要求价/助推力度），写入 promotions 表。"""
+    from openoctopus.db import get_conn
+
+    conn = get_conn(ctx.db_path)
+    actions = await ctx.ozon.actions_list()
+    conn.execute("DELETE FROM promotions")
+    conn.execute("DELETE FROM promotion_candidates")
+    for a in actions:
+        aid = int(a.get("id") or 0)
+        if not aid:
+            continue
+        conn.execute(
+            "INSERT INTO promotions(action_id, title, date_start, date_end, potential, "
+            "participating, participating_count, description) VALUES(?,?,?,?,?,?,?,?)",
+            (aid, str(a.get("title") or ""), str(a.get("date_start") or ""),
+             str(a.get("date_end") or ""), int(a.get("potential_products_count") or 0),
+             1 if a.get("is_participating") else 0,
+             int(a.get("participating_products_count") or 0),
+             str(a.get("description") or "")[:2000]))
+    conn.commit()
+    for a in actions:
+        aid = int(a.get("id") or 0)
+        if not aid:
+            continue
+        try:
+            cands = await ctx.ozon.action_candidates(aid, limit=500)
+        except Exception as e:  # noqa: BLE001
+            print(f"[promotions] candidates failed for {aid}: {e}", file=sys.stderr)
+            continue
+        for c in cands:
+            conn.execute(
+                "INSERT INTO promotion_candidates(action_id, product_id, price, action_price, "
+                "max_action_price, current_boost, max_boost, min_boost, stock) "
+                "VALUES(?,?,?,?,?,?,?,?,?)",
+                (aid, str(c.get("id") or ""), float(c.get("price") or 0),
+                 float(c.get("action_price") or 0), float(c.get("max_action_price") or 0),
+                 int(c.get("current_boost") or 0), int(c.get("max_boost") or 0),
+                 int(c.get("min_boost") or 0), int(c.get("stock") or 0)))
+        conn.commit()
+        await asyncio.sleep(0.3)
+
+
+async def handle_promotion_activate(ctx, payload: dict) -> None:
+    """参加活动：products = [{product_id, action_price}]。"""
+    await ctx.ozon.action_activate(int(payload["action_id"]), payload["products"])
+
+
+async def handle_promotion_deactivate(ctx, payload: dict) -> None:
+    await ctx.ozon.action_deactivate(int(payload["action_id"]),
+                                     [int(p) for p in payload["product_ids"]])
+
+
 async def handle_make_infographic(ctx, payload: dict) -> None:
     """用第一张译文主图生成卖点信息图，加入图库（label=infographic）。"""
     import httpx
@@ -718,4 +771,7 @@ HANDLERS = {"collect": handle_collect, "generate": handle_generate, "publish": h
             "fetch_keywords": handle_fetch_keywords,
             "refresh_metrics": handle_refresh_metrics,
             "make_infographic": handle_make_infographic,
-            "improve_description": handle_improve_description}
+            "improve_description": handle_improve_description,
+            "refresh_promotions": handle_refresh_promotions,
+            "promotion_activate": handle_promotion_activate,
+            "promotion_deactivate": handle_promotion_deactivate}

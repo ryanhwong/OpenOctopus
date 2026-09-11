@@ -567,3 +567,33 @@ def test_infographic_and_improve_routes(tmp_path):
     assert {"make_infographic", "improve_description"} <= types
     html = c.get("/products/1").text
     assert "生成首图信息图" in html and "AI 优化描述" in html
+
+
+def test_promotions_pages_and_actions(tmp_path):
+    import json as _j
+
+    c, db_path = make_client(tmp_path)
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO promotions(action_id, title, date_start, date_end, potential) "
+                 "VALUES(1977747, 'Эластичный бустинг', '2026-01-01', '2026-12-31', 10)")
+    conn.execute("INSERT INTO promotion_candidates(action_id, product_id, price, "
+                 "max_action_price, stock) VALUES(1977747, '558174716', 40, 38, 5)")
+    conn.commit()
+    html = c.get("/promotions").text
+    assert "Эластичный бустинг" in html and "查看商品" in html
+    detail = c.get("/promotions/1977747").text
+    assert "558174716" in detail and "保本价" in detail and "参加选中" in detail
+    r = c.post("/promotions/1977747/activate",
+               data={"sel_558174716": "1", "price_558174716": "36"},
+               follow_redirects=False)
+    assert r.status_code == 303
+    job = conn.execute("SELECT payload_json FROM jobs WHERE type='promotion_activate'"
+                       ).fetchone()
+    payload = _j.loads(job["payload_json"])
+    assert payload["products"] == [{"product_id": 558174716, "action_price": 36.0}]
+    r2 = c.post("/promotions/1977747/deactivate", data={"sel_558174716": "1"},
+                follow_redirects=False)
+    assert r2.status_code == 303
+    assert conn.execute("SELECT count(*) FROM jobs WHERE type='promotion_deactivate'"
+                        ).fetchone()[0] == 1
+    assert c.get("/promotions/999").status_code == 404

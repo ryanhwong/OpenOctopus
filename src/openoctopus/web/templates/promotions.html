@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}促销管理 - OpenOctopus{% endblock %}
+{% block content %}
+<div class="card" style="margin-bottom:20px">
+  <div class="toolbar">
+    <div>
+      <h1 style="margin-bottom:4px">促销管理</h1>
+      <p class="muted" style="margin:0">Ozon 活动列表；点进活动查看可参加商品、要求价与盈亏对比。先点「刷新数据」。</p>
+    </div>
+    <form method="post" action="/promotions/refresh">
+      <button class="btn btn-primary" type="submit">刷新数据</button>
+    </form>
+  </div>
+</div>
+
+{% if rows %}
+<div class="card">
+  <div class="tablewrap">
+    <table class="dtable">
+      <thead>
+        <tr><th>活动</th><th>时间</th><th>可参加商品</th><th>已参加</th><th>候选数</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td><a href="/promotions/{{ r['action_id'] }}">{{ r['title'][:52] }}</a></td>
+          <td class="muted">{{ (r['date_start'] or '')[:10] }} ~ {{ (r['date_end'] or '')[:10] }}</td>
+          <td>{{ r['potential'] }}</td>
+          <td>{% if r['participating'] %}是（{{ r['participating_count'] }}）{% else %}<span class="muted">否</span>{% endif %}</td>
+          <td>{{ r['candidates'] }}</td>
+          <td>
+            <a class="btn btn-ghost" href="/promotions/{{ r['action_id'] }}"
+               style="min-height:28px;padding:0 10px;font-size:12px;white-space:nowrap">查看商品</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <p class="muted">暂无数据：点右上「刷新数据」从 Ozon 拉取活动列表与候选商品。</p>
+</div>
+{% endif %}
+{% endblock %}
