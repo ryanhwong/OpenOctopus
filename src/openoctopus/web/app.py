@@ -299,11 +299,13 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                            stock=p.get("stock"), dims_count=dims_count,
                            unmatched_colors=sum(1 for v in variants if not v["matched"]),
                            dup_colors=len(rus) != len(set(rus)))
-        content_jobs = conn.execute(
-            "SELECT count(*) FROM jobs WHERE status IN ('queued','running') "
-            "AND type IN ('regenerate_video','regenerate_rich','regenerate_titles',"
-            "'fetch_keywords','make_infographic','improve_description') "
-            "AND payload_json LIKE ?", (f'%"product_id": {pid}%',)).fetchone()[0]
+        content_job_types = [
+            r["type"] for r in conn.execute(
+                "SELECT DISTINCT type FROM jobs WHERE status IN ('queued','running') "
+                "AND type IN ('regenerate_video','regenerate_rich','regenerate_titles',"
+                "'fetch_keywords','make_infographic','improve_description') "
+                "AND json_extract(payload_json, '$.product_id') = ?", (pid,)).fetchall()]
+        content_jobs = len(content_job_types)
         return TEMPLATES.TemplateResponse(request, "review.html",
                                           {"p": p, "t": t, "images": images, "hero": hero,
                                            "mapping": mapping, "cats": cats, "variants": variants,
@@ -316,6 +318,7 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                                            "style_label": style_label,
                                            "r2_base": ctx.settings.r2_public_base_url or "",
                                            "content_jobs": content_jobs,
+                                           "content_job_types": content_job_types,
                                            "currency": (ctx.settings.price_currency or "RUB").upper()})
 
     @app.post("/products/{pid}/edit")

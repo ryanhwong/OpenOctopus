@@ -17,6 +17,15 @@
 </div>
 
 <form method="post" action="/products/{{ p['id'] }}/description/improve" id="desc-improve-form"></form>
+{% if content_jobs %}
+{% set job_labels = {"regenerate_video": "视频生成", "regenerate_rich": "详情页生成",
+                     "regenerate_titles": "标题候选生成", "fetch_keywords": "搜索词抓取",
+                     "make_infographic": "信息图生成", "improve_description": "AI 描述优化"} %}
+<div class="jobrun" style="margin-bottom:12px" role="status">
+  有任务执行中：{% for t in content_job_types %}{{ job_labels.get(t, t) }}{% if not loop.last %}、{% endif %}{% endfor %}
+  ，完成后自动刷新（不影响你继续查看）
+</div>
+{% endif %}
 <div class="grid2">
   <section class="card" aria-label="俄语草稿编辑">
     <h2 style="margin-top:0">俄语草稿</h2>
@@ -46,11 +55,11 @@
     {% endif %}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px">
       <form method="post" action="/products/{{ p['id'] }}/titles/regenerate">
-        <button class="btn btn-ghost" type="submit"
+        <button class="btn btn-ghost" type="submit" {% if content_jobs %}disabled{% endif %}
                 style="min-height:32px;padding:2px 12px">重新生成候选</button>
       </form>
       <form method="post" action="/products/{{ p['id'] }}/keywords/fetch">
-        <button class="btn btn-ghost" type="submit"
+        <button class="btn btn-ghost" type="submit" {% if content_jobs %}disabled{% endif %}
                 style="min-height:32px;padding:2px 12px">抓取 Ozon 搜索词</button>
       </form>
     </div>
@@ -73,7 +82,7 @@
 
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
         <label for="f-desc" style="margin:0">描述 (RU)</label>
-        <button class="btn btn-ghost" type="submit" form="desc-improve-form"
+        <button class="btn btn-ghost" type="submit" form="desc-improve-form" {% if content_jobs %}disabled{% endif %}
                 style="min-height:28px;padding:0 10px;font-size:12px">AI 优化描述</button>
       </div>
       <textarea id="f-desc" name="description_ru" rows="8">{{ t.get('description', {}).get('ru', '') }}</textarea>
@@ -133,7 +142,6 @@
   <div>
     <section class="card" aria-label="视频与详情页" style="margin-bottom:20px">
       <h2 style="margin-top:0">视频与详情页（Ozon 富内容）</h2>
-      {% if content_jobs %}<p class="muted" style="color:var(--warning);margin:0 0 6px">生成中，请稍候…（本页自动刷新）</p>{% endif %}
       <h3 style="margin-top:8px">商品视频</h3>
       {% if p.get('video_url') %}
       <video controls preload="metadata" src="{{ p['video_url'] }}" aria-label="商品视频"></video>
@@ -142,7 +150,7 @@
       <p class="muted">未生成。上架前生成，可提升内容评级（视频项 +40 分）。</p>
       {% endif %}
       <form method="post" action="/products/{{ p['id'] }}/content/video/regenerate" style="margin-top:8px">
-        <button class="btn btn-ghost" type="submit">{% if p.get('video_url') %}重新生成视频{% else %}生成视频{% endif %}</button>
+        <button class="btn btn-ghost" type="submit" {% if content_jobs %}disabled{% endif %}>{% if p.get('video_url') %}重新生成视频{% else %}生成视频{% endif %}</button>
       </form>
 
       <h3>详情页（图文介绍）</h3>
@@ -167,7 +175,7 @@
       <p class="muted">暂无详情页内容，点下方「重新生成详情页」自动生成。</p>
       {% endif %}
       <form method="post" action="/products/{{ p['id'] }}/content/rich/regenerate" style="margin-top:6px">
-        <button class="btn btn-ghost" type="submit">重新生成详情页</button>
+        <button class="btn btn-ghost" type="submit" {% if content_jobs %}disabled{% endif %}>重新生成详情页</button>
       </form>
       <details>
         <summary>高级：原始 JSON（一般不用改）</summary>
@@ -218,7 +226,7 @@
       <p class="muted" style="margin:0">勾选「用于上架」的图片会随商品发布；可展开「自定义重生成」指定修改要求。</p>
     </div>
     <form method="post" action="/products/{{ p['id'] }}/infographic">
-      <button class="btn btn-ghost" type="submit">生成首图信息图</button>
+      <button class="btn btn-ghost" type="submit" {% if content_jobs %}disabled{% endif %}>生成首图信息图</button>
     </form>
   </div>
   {% set kind_labels = {"main": "主图", "detail": "详情图", "swatch": "色卡"} %}
@@ -367,10 +375,23 @@
 })();
 </script>
 
+<script>
+(function () {
+  const y = sessionStorage.getItem('oo-scroll');
+  if (y) {
+    window.scrollTo(0, parseInt(y, 10));
+    sessionStorage.removeItem('oo-scroll');
+  }
+})();
+</script>
+
 {% if p['status'] == 'generating' or content_jobs %}
 <script>
-// 生成中：每 4 秒自动刷新，避免手动刷新
-setTimeout(() => location.reload(), 4000);
+// 生成中：每 6 秒自动刷新，并保持滚动位置
+setTimeout(() => {
+  sessionStorage.setItem('oo-scroll', String(window.scrollY));
+  location.reload();
+}, 6000);
 </script>
 {% endif %}
 {% endblock %}
