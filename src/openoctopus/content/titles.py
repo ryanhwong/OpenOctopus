@@ -13,6 +13,8 @@ TITLE_PROMPT = (
     "- Structure: [material/key feature] + [product type] + [compatibility/purpose] + [key benefit]\n"
     "- Use the words Russian buyers actually search, 3-5 keywords naturally placed; NEVER stuff keywords\n"
     "- Max 150 characters, no period at the end, no ALL CAPS words, no emoji, no '!!!'\n"
+    "- Russian grammar MUST be correct: first word capitalized, all other words lowercase "
+    "except proper nouns (Apple Watch); never repeat 'для' twice in a row like 'для X для Y'\n"
     "- Never claim to be an official brand product; compatibility wording like 'для Apple Watch' is fine\n"
     "- No superlatives like 'лучший', '№1', 'хит продаж'\n"
     'Respond strict JSON: {"titles": [{"style": "seo", "text": "..."}, '
@@ -43,6 +45,10 @@ def compat_ru(title_zh: str) -> str:
     return ""
 
 
+def _cap(text: str) -> str:
+    return text[:1].upper() + text[1:] if text[:1].islower() else text
+
+
 def template_titles(*, type_ru: str, material: str, compat: str,
                     feature: str = "") -> list[dict]:
     """规则兜底：无 LLM 时也能产出可用标题。"""
@@ -52,9 +58,9 @@ def template_titles(*, type_ru: str, material: str, compat: str,
     base = f"{mat}{t} {compat}".strip()
     seo = f"{base}, {tail}" if tail else base
     benefit = f"{compat} — {base.replace(compat, '').strip()}, {tail}".strip(" —,")
-    return [{"style": "seo", "text": re.sub(r"\s+", " ", seo)[:150]},
-            {"style": "short", "text": re.sub(r"\s+", " ", base)[:150]},
-            {"style": "benefit", "text": re.sub(r"\s+", " ", benefit)[:150]}]
+    return [{"style": "seo", "text": _cap(re.sub(r"\s+", " ", seo))[:150]},
+            {"style": "short", "text": _cap(re.sub(r"\s+", " ", base))[:150]},
+            {"style": "benefit", "text": _cap(re.sub(r"\s+", " ", benefit))[:150]}]
 
 
 async def generate_titles(client, model, *, title_zh: str, title_ru: str, desc_ru: str,
@@ -79,8 +85,10 @@ async def generate_titles(client, model, *, title_zh: str, title_ru: str, desc_r
     out = []
     for t in data.get("titles", []):
         if isinstance(t, dict) and str(t.get("text") or "").strip():
-            out.append({"style": str(t.get("style") or "seo"),
-                        "text": str(t["text"]).strip()[:200]})
+            text = str(t["text"]).strip()[:200]
+            if text[:1].islower():
+                text = text[:1].upper() + text[1:]
+            out.append({"style": str(t.get("style") or "seo"), "text": text})
     if len(out) < 2:
         raise ValueError("LLM 返回的标题候选不足")
     return out[:3]

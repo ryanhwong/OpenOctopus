@@ -27,7 +27,7 @@ def test_template_titles():
                             compat="для Apple Watch", feature="эластичный")
     assert len(cands) == 3
     assert {c["style"] for c in cands} == {"seo", "short", "benefit"}
-    assert "нейлоновый" in cands[0]["text"]
+    assert "нейлоновый" in cands[0]["text"].lower()
     assert "Apple Watch" in cands[0]["text"]
     assert all(len(c["text"]) <= 150 for c in cands)
 
