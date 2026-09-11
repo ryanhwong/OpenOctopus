@@ -22,8 +22,7 @@
                      "regenerate_titles": "标题候选生成", "fetch_keywords": "搜索词抓取",
                      "make_infographic": "信息图生成", "improve_description": "AI 描述优化"} %}
 <div class="jobrun" style="margin-bottom:12px" role="status">
-  有任务执行中：{% for t in content_job_types %}{{ job_labels.get(t, t) }}{% if not loop.last %}、{% endif %}{% endfor %}
-  ，完成后自动刷新（不影响你继续查看）
+  有任务执行中：{% for t in content_job_types %}{{ job_labels.get(t, t) }}{% if not loop.last %}、{% endif %}{% endfor %}，完成后自动刷新（不影响你继续查看）
 </div>
 {% endif %}
 <div class="grid2">
