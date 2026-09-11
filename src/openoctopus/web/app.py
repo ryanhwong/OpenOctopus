@@ -78,16 +78,28 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                     pass
 
     @app.get("/", response_class=HTMLResponse)
-    def kanban(request: Request):
+    def kanban(request: Request, status: str = "all"):
         conn = get_conn(ctx.db_path)
-        groups = [(label, conn.execute(
-            "SELECT p.id, p.source_url, p.status, p.price_rub, "
-            "(SELECT t.ru FROM translations t WHERE t.product_id=p.id AND t.field='title' "
-            " LIMIT 1) AS title_ru, "
-            "(SELECT i.translated_url FROM images i WHERE i.product_id=p.id AND i.kind='main' "
-            " AND i.translated_url IS NOT NULL ORDER BY i.id LIMIT 1) AS thumb "
-            "FROM products p WHERE p.status=? ORDER BY p.updated_at DESC",
-            (st,)).fetchall()) for st, label in STATUS_GROUPS]
+        statuses = {st: label for st, label in STATUS_GROUPS}
+        if status not in statuses:
+            status = "all"
+        counts = {st: conn.execute("SELECT count(*) FROM products WHERE status=?",
+                                    (st,)).fetchone()[0] for st in statuses}
+        counts["all"] = sum(counts.values())
+        sql = ("SELECT p.id, p.source_url, p.status, p.price_rub, "
+               "(SELECT t.ru FROM translations t WHERE t.product_id=p.id AND t.field='title' "
+               " LIMIT 1) AS title_ru, "
+               "(SELECT i.translated_url FROM images i WHERE i.product_id=p.id AND i.kind='main' "
+               " AND i.translated_url IS NOT NULL ORDER BY i.id LIMIT 1) AS thumb "
+               "FROM products p ")
+        params: tuple = ()
+        if status != "all":
+            sql += "WHERE p.status=? "
+            params = (status,)
+        sql += ("ORDER BY CASE p.status WHEN 'review' THEN 0 WHEN 'publishing' THEN 1 "
+                "WHEN 'generating' THEN 2 WHEN 'collected' THEN 3 WHEN 'new' THEN 4 "
+                "WHEN 'failed' THEN 5 ELSE 6 END, p.updated_at DESC")
+        items = conn.execute(sql, params).fetchall()
         job_by_product = {}
         for j in conn.execute(
                 "SELECT id, type, status, retries, error, payload_json FROM jobs "
@@ -99,7 +111,9 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
             if pid is not None and pid not in job_by_product:
                 job_by_product[pid] = dict(j)
         return TEMPLATES.TemplateResponse(request, "kanban.html", {
-            "groups": groups, "login": _login_snapshot(), "jobs": job_by_product,
+            "items": items, "status": status, "counts": counts,
+            "chips": [("all", "全部")] + STATUS_GROUPS, "login": _login_snapshot(),
+            "jobs": job_by_product,
             "currency": (ctx.settings.price_currency or "RUB").upper()})
 
     @app.get("/login/status")
@@ -193,6 +207,9 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                                      "price_rub": round(cny * rate), "combos": len(grp)})
         hero = next((r["translated_url"] for r in images
                      if r["kind"] == "main" and r["translated_url"]), None)
+        from openoctopus.listing.enrich import parse_rich_content
+
+        rich_blocks = parse_rich_content(p.get("rich_content") or "")
         content_jobs = conn.execute(
             "SELECT count(*) FROM jobs WHERE status IN ('queued','running') "
             "AND type IN ('regenerate_video','regenerate_rich') "
@@ -200,6 +217,7 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         return TEMPLATES.TemplateResponse(request, "review.html",
                                           {"p": p, "t": t, "images": images, "hero": hero,
                                            "mapping": mapping, "cats": cats, "variants": variants,
+                                           "rich_blocks": rich_blocks,
                                            "content_jobs": content_jobs,
                                            "currency": (ctx.settings.price_currency or "RUB").upper()})
 
@@ -245,9 +263,26 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         except ValueError:
             stock_val = 0
         conn.execute("UPDATE products SET stock=? WHERE id=?", (stock_val, pid))
-        if rich_content.strip():
-            conn.execute("UPDATE products SET rich_content=? WHERE id=?",
-                         (rich_content.strip(), pid))
+        rc_raw = str(form.get("rc_raw_mode") or "")
+        rc_count = str(form.get("rc_count") or "")
+        if rc_raw == "1" or (not rc_count and rich_content.strip()):
+            if rich_content.strip():
+                try:
+                    _json.loads(rich_content)
+                except _json.JSONDecodeError:
+                    return HTMLResponse("Invalid rich_content JSON", status_code=400)
+                conn.execute("UPDATE products SET rich_content=? WHERE id=?",
+                             (rich_content.strip(), pid))
+        elif rc_count.isdigit() and int(rc_count) > 0:
+            from openoctopus.listing.enrich import build_rich_content_from_blocks
+
+            blocks = [{"img": form.get(f"rc_img_{i}", ""),
+                       "title": form.get(f"rc_title_{i}", ""),
+                       "text": form.get(f"rc_text_{i}", "")}
+                      for i in range(int(rc_count))]
+            rich = build_rich_content_from_blocks(blocks)
+            if rich:
+                conn.execute("UPDATE products SET rich_content=? WHERE id=?", (rich, pid))
         dims = {}
         for field, key in (("length_mm", length_mm), ("width_mm", width_mm),
                            ("height_mm", height_mm), ("weight_g", weight_g)):

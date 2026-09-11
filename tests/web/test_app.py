@@ -304,3 +304,47 @@ def test_content_regenerate_routes_enqueue_jobs(tmp_path):
     assert {"regenerate_video", "regenerate_rich"} <= types
     assert c.post("/products/9/content/video/regenerate",
                   follow_redirects=False).status_code == 404
+
+
+def test_kanban_status_filter_and_counts(tmp_path):
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "review")
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO products(id, source_url, status) VALUES(2, 'https://x/2', 'listed')")
+    conn.commit()
+    html = c.get("/").text
+    assert "待审" in html and "已上架" in html
+    listed = c.get("/?status=listed").text
+    assert "https://x/2" in listed or "#2" in listed
+    assert "/?status=review" in html
+
+
+def test_edit_rebuilds_rich_from_visual_blocks(tmp_path):
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "review")
+    r = c.post("/products/1/edit", data={
+        "title_ru": "T", "description_ru": "D", "ozon_category_id": "42",
+        "attributes_json": "[]", "rc_count": "2",
+        "rc_img_0": "https://r2/a.png", "rc_title_0": "Заголовок",
+        "rc_text_0": "Текст 1",
+        "rc_img_1": "https://r2/b.png", "rc_title_1": "Ещё",
+        "rc_text_1": "Текст 2",
+    }, follow_redirects=False)
+    assert r.status_code == 303
+    conn = get_conn(db_path)
+    import json as _j
+    rich = _j.loads(conn.execute("SELECT rich_content FROM products WHERE id=1").fetchone()[0])
+    blocks = rich["content"][0]["blocks"]
+    assert len(blocks) == 2
+    assert blocks[0]["img"]["src"] == "https://r2/a.png"
+    assert blocks[0]["title"]["content"][0] == "Заголовок"
+
+
+def test_edit_rejects_invalid_raw_rich_json(tmp_path):
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "review")
+    r = c.post("/products/1/edit", data={
+        "title_ru": "T", "description_ru": "D", "ozon_category_id": "42",
+        "attributes_json": "[]", "rc_raw_mode": "1", "rich_content": "{bad json",
+    }, follow_redirects=False)
+    assert r.status_code == 400

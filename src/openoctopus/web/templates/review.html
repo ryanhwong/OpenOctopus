@@ -75,13 +75,39 @@
         <button class="btn btn-ghost" type="submit">{% if p.get('video_url') %}重新生成视频{% else %}生成视频{% endif %}</button>
       </form>
 
-      <h3>详情页 / Rich-контент JSON</h3>
-      <p class="muted">图文详情，上架后展示在描述区（可替代纯文字描述）。可手动编辑，「保存草稿」后生效。</p>
-      <textarea name="rich_content" form="edit-form" rows="6" spellcheck="false"
-                aria-label="Rich-контент JSON">{{ p.get('rich_content') or '' }}</textarea>
+      <h3>详情页（图文介绍）</h3>
+      <p class="muted">上架后展示在商品描述区，可直接预览编辑，「保存草稿」后生效。</p>
+      {% if rich_blocks %}
+      <input type="hidden" name="rc_count" value="{{ rich_blocks|length }}" form="edit-form">
+      {% for b in rich_blocks %}
+      <div class="rc-block">
+        <img src="{{ b.img }}" alt="详情图 {{ loop.index }}" loading="lazy">
+        <div class="rc-fields">
+          <label for="rc-title-{{ loop.index }}">标题</label>
+          <input id="rc-title-{{ loop.index }}" name="rc_title_{{ loop.index0 }}" type="text"
+                 value="{{ b.title }}" form="edit-form" maxlength="80">
+          <label for="rc-text-{{ loop.index }}">文字</label>
+          <textarea id="rc-text-{{ loop.index }}" name="rc_text_{{ loop.index0 }}" rows="3"
+                    form="edit-form" spellcheck="false" maxlength="400">{{ b.text }}</textarea>
+          <input type="hidden" name="rc_img_{{ loop.index0 }}" value="{{ b.img }}" form="edit-form">
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <p class="muted">暂无详情页内容，点下方「重新生成详情页」自动生成。</p>
+      {% endif %}
       <form method="post" action="/products/{{ p['id'] }}/content/rich/regenerate" style="margin-top:6px">
         <button class="btn btn-ghost" type="submit">重新生成详情页</button>
       </form>
+      <details>
+        <summary>高级：原始 JSON（一般不用改）</summary>
+        <label style="font-weight:400;font-size:13px">
+          <input type="checkbox" name="rc_raw_mode" value="1" form="edit-form" style="width:auto">
+          使用下面的 JSON 覆盖上方可视化编辑
+        </label>
+        <textarea name="rich_content" form="edit-form" rows="6" spellcheck="false"
+                  aria-label="Rich-контент JSON">{{ p.get('rich_content') or '' }}</textarea>
+      </details>
     </section>
 
     <section class="card" aria-label="中文原文对照" style="margin-bottom:20px">

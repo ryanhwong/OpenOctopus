@@ -62,3 +62,39 @@ def test_slideshow_requires_images():
 
     assert make_slideshow([]) == b""
     assert make_slideshow(["https://x/1.png"]) == b""
+
+
+def test_parse_and_rebuild_roundtrip():
+    from openoctopus.listing.enrich import (
+        build_rich_content,
+        build_rich_content_from_blocks,
+        parse_rich_content,
+    )
+
+    raw = build_rich_content("Термос", "Первая строка\nВторая строка",
+                             ["https://x/1.png", "https://x/2.png"])
+    blocks = parse_rich_content(raw)
+    assert len(blocks) == 2
+    assert blocks[0]["img"] == "https://x/1.png"
+    assert blocks[0]["title"] == "Термос"
+    assert blocks[0]["text"] == "Первая строка"
+    assert blocks[1]["text"] == "Вторая строка"
+
+    edited = [dict(blocks[0], title="Новый заголовок"), blocks[1]]
+    rebuilt = build_rich_content_from_blocks(edited)
+    again = parse_rich_content(rebuilt)
+    assert again[0]["title"] == "Новый заголовок"
+    assert again[0]["img"] == "https://x/1.png"
+
+
+def test_parse_rich_content_tolerates_garbage():
+    from openoctopus.listing.enrich import (
+        build_rich_content_from_blocks,
+        parse_rich_content,
+    )
+
+    assert parse_rich_content("") == []
+    assert parse_rich_content("not json") == []
+    assert parse_rich_content('{"version": 0.3, "content": []}') == []
+    assert build_rich_content_from_blocks([]) == ""
+    assert build_rich_content_from_blocks([{"img": "", "title": "x", "text": "y"}]) == ""

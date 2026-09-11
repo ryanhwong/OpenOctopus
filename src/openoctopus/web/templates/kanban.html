@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}看板 - OpenOctopus{% endblock %}
+{% block title %}商品列表 - OpenOctopus{% endblock %}
 {% block nav %}
 {% if login.status == "waiting" %}
 <span class="pill pill-generating">等待扫码…</span>
@@ -45,45 +45,49 @@
   </form>
 </div>
 
-<form id="batchform" method="post" action="/products/publish-batch"
-      style="margin:0 0 12px;display:flex;gap:10px;align-items:center">
-  <button class="btn btn-cta" type="submit">批量同步选中到线上</button>
-  <span class="muted">勾选卡片后一键重新上架（改价/改属性后同步用）</span>
-</form>
-<div class="cols">
-{% for label, items in groups %}
-  <section class="col" aria-label="{{ label }}">
-    <div class="col-head">{{ label }} <span class="count">{{ items|length }}</span></div>
+<form method="post" action="/products/publish-batch">
+  <div class="toolbar">
+    <nav class="chips" aria-label="状态筛选">
+      {% for st, label in chips %}
+      <a class="chip {% if status == st %}chip-active{% endif %}" href="/?status={{ st }}"
+         {% if status == st %}aria-current="page"{% endif %}>{{ label }}
+        <span class="count">{{ counts[st] }}</span></a>
+      {% endfor %}
+    </nav>
+    <button class="btn btn-cta" type="submit">批量同步选中到线上</button>
+  </div>
+  <div class="grid">
     {% for it in items %}
-      <div class="pcard">
-        <div class="pcard-row">
-          <input type="checkbox" name="pid" value="{{ it['id'] }}" form="batchform"
-                 title="选中批量同步">
-          <a class="pcard-link" href="/products/{{ it['id'] }}" title="{{ it['source_url'] }}">
-            <span class="thumb">
-              {% if it['thumb'] %}<img src="{{ it['thumb'] }}" alt="" loading="lazy">
-              {% else %}#{{ it['id'] }}{% endif %}
-            </span>
-            <span class="pinfo">
-              <span class="ptitle">{{ it['title_ru'] or it['source_url'] }}</span>
-              <span class="pmeta">#{{ it['id'] }}{% if it['price_rub'] %} · {{ it['price_rub'] }} {{ currency }}{% endif %}</span>
-            </span>
-          </a>
-        </div>
+    {% set label_map = dict(chips) %}
+    <div class="pcard">
+      <div class="pcard-row">
+        <input type="checkbox" name="pid" value="{{ it['id'] }}" title="选中批量同步"
+               aria-label="选中商品 #{{ it['id'] }}">
+        <a class="pcard-link" href="/products/{{ it['id'] }}" title="{{ it['source_url'] }}">
+          <span class="thumb">
+            {% if it['thumb'] %}<img src="{{ it['thumb'] }}" alt="" loading="lazy">
+            {% else %}#{{ it['id'] }}{% endif %}
+          </span>
+          <span class="pinfo">
+            <span class="ptitle">{{ it['title_ru'] or it['source_url'] }}</span>
+            <span class="pmeta">#{{ it['id'] }}{% if it['price_rub'] %} · {{ it['price_rub'] }} {{ currency }}{% endif %}
+              · {{ label_map.get(it['status'], it['status']) }}</span>
+          </span>
+        </a>
       </div>
-      {% set job = jobs.get(it['id']) %}
-      {% if job and job['status'] == 'failed' %}
-      <div class="joberr">失败({{ job['type'] }}, {{ job['retries'] }}次)：{{ (job['error'] or '')[:120] }}
-        <form method="post" action="/jobs/{{ job['id'] }}/retry">
-          <button class="btn btn-ghost" type="submit" style="min-height:32px;padding:2px 12px">重试</button>
-        </form>
-      </div>
-      {% elif job and (job['status'] in ('running',) or job['retries']) %}
-      <div class="jobrun">{{ job['type'] }} 执行中…</div>
-      {% endif %}
+    </div>
+    {% set job = jobs.get(it['id']) %}
+    {% if job and job['status'] == 'failed' %}
+    <div class="joberr" style="grid-column:1/-1">失败({{ job['type'] }}, {{ job['retries'] }}次)：{{ (job['error'] or '')[:120] }}
+      <form method="post" action="/jobs/{{ job['id'] }}/retry">
+        <button class="btn btn-ghost" type="submit" style="min-height:32px;padding:2px 12px">重试</button>
+      </form>
+    </div>
+    {% elif job and (job['status'] in ('running',) or job['retries']) %}
+    <div class="jobrun" style="grid-column:1/-1">{{ job['type'] }} 执行中…</div>
+    {% endif %}
     {% endfor %}
-    {% if not items %}<div class="empty">暂无商品</div>{% endif %}
-  </section>
-{% endfor %}
-</div>
+  </div>
+  {% if not items %}<div class="empty">该状态下暂无商品</div>{% endif %}
+</form>
 {% endblock %}

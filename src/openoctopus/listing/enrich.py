@@ -12,6 +12,18 @@ FITS_APPLE = 39477
 SERIAL_NO = 82353
 
 
+def _block(title: str, text: str, url: str, reverse: bool) -> dict:
+    return {
+        "img": {"src": url, "srcMobile": url,
+                "width": 1080, "height": 1080,
+                "widthMobile": 640, "heightMobile": 640},
+        "title": {"content": [title[:80]], "size": "size4", "align": "left", "color": "color1"},
+        "text": {"size": "size2", "align": "left", "color": "color1",
+                 "content": [text[:400]]},
+        "reverse": reverse,
+    }
+
+
 def build_rich_content(title_ru: str, description_ru: str,
                        image_urls: list[str], material_hint: str = "") -> str:
     """生成 Ozon rich-content JSON（raShowcase/chess，2-6 个图文块）。"""
@@ -24,19 +36,51 @@ def build_rich_content(title_ru: str, description_ru: str,
     blocks = []
     for i, url in enumerate(img):
         text = paras[i % len(paras)]
-        blocks.append({
-            "img": {"src": url, "srcMobile": url,
-                    "width": 1080, "height": 1080,
-                    "widthMobile": 640, "heightMobile": 640},
-            "title": {"content": [title_ru[:60] if i == 0 else material_hint or title_ru[:40]],
-                      "size": "size4", "align": "left", "color": "color1"},
-            "text": {"size": "size2", "align": "left", "color": "color1",
-                     "content": [text[:400]]},
-            "reverse": i % 2 == 1,
-        })
+        blk_title = title_ru[:60] if i == 0 else material_hint or title_ru[:40]
+        blocks.append(_block(blk_title, text, url, i % 2 == 1))
     return json.dumps({"version": 0.3,
                        "content": [{"widgetName": "raShowcase", "type": "chess",
                                     "blocks": blocks}]},
+                      ensure_ascii=False)
+
+
+def parse_rich_content(raw: str) -> list[dict]:
+    """从 rich-content JSON 提取可视化块 [{img,title,text}]，解析失败返回 []。"""
+    try:
+        data = json.loads(raw or "{}")
+    except (json.JSONDecodeError, TypeError):
+        return []
+    for widget in data.get("content", []) or []:
+        if widget.get("widgetName") != "raShowcase":
+            continue
+        out = []
+        for b in widget.get("blocks", []) or []:
+            img = str((b.get("img") or {}).get("src", ""))
+            t = b.get("title")
+            if isinstance(t, dict):
+                t = (t.get("content") or [""])[0]
+            tx = b.get("text")
+            if isinstance(tx, dict):
+                tx = (tx.get("content") or [""])[0]
+            out.append({"img": img, "title": str(t or ""), "text": str(tx or "")})
+        return out
+    return []
+
+
+def build_rich_content_from_blocks(blocks: list[dict]) -> str:
+    """从可视化块（img/title/text）重建 rich-content JSON。"""
+    out = []
+    for i, b in enumerate(blocks):
+        url = str(b.get("img") or "").strip()
+        if not url:
+            continue
+        out.append(_block(str(b.get("title") or ""), str(b.get("text") or ""),
+                          url, i % 2 == 1))
+    if not out:
+        return ""
+    return json.dumps({"version": 0.3,
+                       "content": [{"widgetName": "raShowcase", "type": "chess",
+                                    "blocks": out}]},
                       ensure_ascii=False)
 
 
