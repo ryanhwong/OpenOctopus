@@ -78,28 +78,39 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                     pass
 
     @app.get("/", response_class=HTMLResponse)
-    def kanban(request: Request, status: str = "all"):
+    def kanban(request: Request, status: str = "all", q: str = "", page: int = 1):
         conn = get_conn(ctx.db_path)
         statuses = {st: label for st, label in STATUS_GROUPS}
         if status not in statuses:
             status = "all"
+        q = (q or "").strip()
         counts = {st: conn.execute("SELECT count(*) FROM products WHERE status=?",
                                     (st,)).fetchone()[0] for st in statuses}
         counts["all"] = sum(counts.values())
+        where, params = [], []
+        if status != "all":
+            where.append("p.status=?")
+            params.append(status)
+        if q:
+            where.append("(p.source_url LIKE ? OR EXISTS (SELECT 1 FROM translations t "
+                         "WHERE t.product_id=p.id AND t.field='title' AND t.ru LIKE ?))")
+            params += [f"%{q}%", f"%{q}%"]
+        where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+        per_page = 24
+        total = conn.execute(f"SELECT count(*) FROM products p {where_sql}",
+                             params).fetchone()[0]
+        pages = max(1, (total + per_page - 1) // per_page)
+        page = min(max(1, page), pages)
         sql = ("SELECT p.id, p.source_url, p.status, p.price_rub, "
                "(SELECT t.ru FROM translations t WHERE t.product_id=p.id AND t.field='title' "
                " LIMIT 1) AS title_ru, "
                "(SELECT i.translated_url FROM images i WHERE i.product_id=p.id AND i.kind='main' "
                " AND i.translated_url IS NOT NULL ORDER BY i.id LIMIT 1) AS thumb "
-               "FROM products p ")
-        params: tuple = ()
-        if status != "all":
-            sql += "WHERE p.status=? "
-            params = (status,)
+               f"FROM products p {where_sql} ")
         sql += ("ORDER BY CASE p.status WHEN 'review' THEN 0 WHEN 'publishing' THEN 1 "
                 "WHEN 'generating' THEN 2 WHEN 'collected' THEN 3 WHEN 'new' THEN 4 "
-                "WHEN 'failed' THEN 5 ELSE 6 END, p.updated_at DESC")
-        items = conn.execute(sql, params).fetchall()
+                "WHEN 'failed' THEN 5 ELSE 6 END, p.updated_at DESC LIMIT ? OFFSET ?")
+        items = conn.execute(sql, [*params, per_page, (page - 1) * per_page]).fetchall()
         job_by_product = {}
         for j in conn.execute(
                 "SELECT id, type, status, retries, error, payload_json FROM jobs "
@@ -112,6 +123,7 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                 job_by_product[pid] = dict(j)
         return TEMPLATES.TemplateResponse(request, "kanban.html", {
             "items": items, "status": status, "counts": counts,
+            "q": q, "page": page, "pages": pages, "total": total,
             "chips": [("all", "全部")] + STATUS_GROUPS, "login": _login_snapshot(),
             "jobs": job_by_product,
             "currency": (ctx.settings.price_currency or "RUB").upper()})
@@ -141,17 +153,27 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
 
     @app.post("/products")
     def submit(url: str = Form(...)):
+        """支持一次粘贴多行 1688 链接批量采集。"""
         from urllib.parse import urlsplit, urlunsplit
 
-        url = url.strip()
-        parts = urlsplit(url)
-        if parts.scheme and parts.netloc:
-            url = urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
         conn = get_conn(ctx.db_path)
-        cur = conn.execute(
-            "INSERT INTO products(source_url, platform, status) VALUES(?, '1688', 'new')", (url,))
+        n = 0
+        for line in url.splitlines():
+            line = line.strip()
+            if not line or "1688.com" not in line:
+                continue
+            parts = urlsplit(line)
+            if parts.scheme and parts.netloc:
+                line = urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
+            try:
+                cur = conn.execute(
+                    "INSERT INTO products(source_url, platform, status) "
+                    "VALUES(?, '1688', 'new')", (line,))
+            except Exception:  # noqa: BLE001, S112
+                continue  # 重复链接跳过
+            enqueue(conn, "collect", {"product_id": cur.lastrowid})
+            n += 1
         conn.commit()
-        enqueue(conn, "collect", {"product_id": cur.lastrowid})
         return RedirectResponse("/", status_code=303)
 
     @app.post("/products/import-html")

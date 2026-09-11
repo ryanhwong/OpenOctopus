@@ -33,9 +33,9 @@
 <div class="card" style="margin-bottom:20px">
   <h1 style="margin-bottom:4px">上架流水线</h1>
   <p class="muted" style="margin-top:0">粘贴 1688 链接自动采集翻译，或上传已保存的商品页 HTML 兜底。</p>
-  <form method="post" action="/products" style="display:flex;gap:10px;margin:14px 0 4px">
-    <input name="url" type="text" placeholder="粘贴 1688 商品链接，例如 https://detail.1688.com/offer/....html"
-           aria-label="1688 商品链接" style="margin:0">
+  <form method="post" action="/products" style="display:flex;gap:10px;margin:14px 0 4px;align-items:flex-start">
+    <textarea name="url" rows="2" placeholder="粘贴 1688 商品链接（支持一次多行，批量采集，例如每行一个）"
+              aria-label="1688 商品链接" style="margin:0"></textarea>
     <button class="btn btn-primary" type="submit" style="white-space:nowrap">采集</button>
   </form>
   <form method="post" action="/products/import-html" enctype="multipart/form-data"
@@ -54,7 +54,15 @@
         <span class="count">{{ counts[st] }}</span></a>
       {% endfor %}
     </nav>
-    <button class="btn btn-cta" type="submit">批量同步选中到线上</button>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <form method="get" action="/" class="searchbox">
+        <input type="hidden" name="status" value="{{ status }}">
+        <input name="q" type="search" value="{{ q }}" placeholder="搜索标题 / 链接"
+               aria-label="搜索商品" style="margin:0">
+        <button class="btn btn-ghost" type="submit">搜索</button>
+      </form>
+      <button class="btn btn-cta" type="submit">批量同步选中到线上</button>
+    </div>
   </div>
   <div class="grid">
     {% for it in items %}
@@ -89,5 +97,16 @@
     {% endfor %}
   </div>
   {% if not items %}<div class="empty">该状态下暂无商品</div>{% endif %}
+  {% if pages > 1 %}
+  <div class="pager">
+    {% if page > 1 %}
+    <a class="chip" href="/?status={{ status }}&q={{ q|urlencode }}&page={{ page - 1 }}">← 上一页</a>
+    {% endif %}
+    <span class="muted">{{ page }} / {{ pages }} 页 · 共 {{ total }} 个</span>
+    {% if page < pages %}
+    <a class="chip" href="/?status={{ status }}&q={{ q|urlencode }}&page={{ page + 1 }}">下一页 →</a>
+    {% endif %}
+  </div>
+  {% endif %}
 </form>
 {% endblock %}

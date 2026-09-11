@@ -19,6 +19,11 @@
 <div class="grid2">
   <section class="card" aria-label="俄语草稿编辑">
     <h2 style="margin-top:0">俄语草稿</h2>
+    <div id="draftbar" class="draftbar" style="display:none">
+      <span>发现未保存的草稿</span>
+      <button type="button" class="btn btn-ghost restore">恢复</button>
+      <button type="button" class="btn btn-ghost discard">丢弃</button>
+    </div>
 
     <label>标题候选</label>
     {% if title_candidates %}
@@ -301,6 +306,52 @@
   };
   ti.addEventListener('input', upd);
   upd();
+})();
+</script>
+
+<script>
+(function () {
+  const form = document.getElementById('edit-form');
+  if (!form) return;
+  const key = 'oo-draft-{{ p["id"] }}';
+  const bar = document.getElementById('draftbar');
+  const collect = () => {
+    const data = {};
+    for (const el of form.elements) {
+      if (!el.name) continue;
+      if (el.type === 'checkbox' || el.type === 'radio') {
+        if (el.checked) data[el.name] = el.value;
+      } else {
+        data[el.name] = el.value;
+      }
+    }
+    return data;
+  };
+  const apply = (data) => {
+    for (const el of form.elements) {
+      if (!el.name || !(el.name in data)) continue;
+      if (el.type === 'checkbox') el.checked = !!data[el.name];
+      else if (el.type === 'radio') el.checked = (data[el.name] === el.value);
+      else el.value = data[el.name];
+    }
+    form.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { saved = null; }
+  const server = collect();
+  if (saved && Object.keys(saved).some(k => server[k] !== saved[k]) && bar) {
+    bar.style.display = 'flex';
+    bar.querySelector('.restore').onclick = () => { apply(saved); bar.style.display = 'none'; };
+    bar.querySelector('.discard').onclick = () => {
+      localStorage.removeItem(key); bar.style.display = 'none';
+    };
+  }
+  let timer = null;
+  form.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => localStorage.setItem(key, JSON.stringify(collect())), 500);
+  });
+  form.addEventListener('submit', () => localStorage.removeItem(key));
 })();
 </script>
 

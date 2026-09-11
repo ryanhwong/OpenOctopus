@@ -527,3 +527,30 @@ def test_dashboard_and_jobs_pages_render(tmp_path):
     assert c.post("/dashboard/refresh", follow_redirects=False).status_code == 303
     assert conn.execute("SELECT count(*) FROM jobs WHERE type='refresh_metrics'"
                         ).fetchone()[0] == 1
+
+
+def test_submit_multiple_urls_and_dedupe(tmp_path):
+    c, db_path = make_client(tmp_path)
+    c.post("/products", data={"url": "https://detail.1688.com/offer/1.html\n"
+                                      "https://detail.1688.com/offer/2.html\ninvalid"})
+    conn = get_conn(db_path)
+    assert conn.execute("SELECT count(*) FROM products").fetchone()[0] == 2
+    assert conn.execute("SELECT count(*) FROM jobs WHERE type='collect'").fetchone()[0] == 2
+    c.post("/products", data={"url": "https://detail.1688.com/offer/1.html"})
+    assert conn.execute("SELECT count(*) FROM products").fetchone()[0] == 2
+
+
+def test_kanban_search_and_pagination(tmp_path):
+    c, db_path = make_client(tmp_path)
+    conn = get_conn(db_path)
+    for i in range(1, 31):
+        conn.execute("INSERT INTO products(id, source_url, status) VALUES(?,?, 'review')",
+                     (i, f"https://detail.1688.com/offer/{i}.html"))
+    conn.execute("INSERT INTO translations(product_id, field, ru) VALUES(3, 'title', 'Искомый товар')")
+    conn.commit()
+    html = c.get("/?q=Искомый").text
+    assert "Искомый товар" in html
+    assert "offer/1.html" not in html  # 只显示匹配结果
+    page2 = c.get("/?page=2").text
+    assert "上一页" in page2
+    assert "下一页" in c.get("/?page=1").text
