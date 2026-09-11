@@ -554,3 +554,16 @@ def test_kanban_search_and_pagination(tmp_path):
     page2 = c.get("/?page=2").text
     assert "上一页" in page2
     assert "下一页" in c.get("/?page=1").text
+
+
+def test_infographic_and_improve_routes(tmp_path):
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "review")
+    conn = get_conn(db_path)
+    assert c.post("/products/1/infographic", follow_redirects=False).status_code == 303
+    assert c.post("/products/1/description/improve",
+                  follow_redirects=False).status_code == 303
+    types = {r["type"] for r in conn.execute("SELECT type FROM jobs")}
+    assert {"make_infographic", "improve_description"} <= types
+    html = c.get("/products/1").text
+    assert "生成首图信息图" in html and "AI 优化描述" in html

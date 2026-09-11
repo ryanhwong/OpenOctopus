@@ -21,8 +21,13 @@ def _ffmpeg() -> str:
 
 
 def make_slideshow(image_urls: list[str], duration_per: float = 3.0,
-                   max_images: int = 6, prefer_host: str = "") -> bytes:
-    """下载图片并合成 1080x1080 幻灯片 MP4，返回字节。失败返回 b""。"""
+                   max_images: int = 6, prefer_host: str = "",
+                   title: str = "", lines: list[str] | None = None,
+                   font_path: str = "") -> bytes:
+    """下载图片并合成 1080x1080 幻灯片 MP4（标题卡 + 淡入淡出）。
+
+    失败返回 b""。
+    """
     urls = [u for u in image_urls if u]
     if prefer_host:
         hosted = [u for u in urls if u.startswith(prefer_host)]
@@ -37,7 +42,14 @@ def make_slideshow(image_urls: list[str], duration_per: float = 3.0,
                              "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"}
     try:
         with tempfile.TemporaryDirectory() as td:
-            imgs = []
+            imgs: list[str] = []
+            if title and font_path:
+                from openoctopus.image.infographic import make_title_card
+
+                card = os.path.join(td, "card.jpg")
+                with open(card, "wb") as f:
+                    f.write(make_title_card(title, lines or [], font_path))
+                imgs.append(card)
             for i, u in enumerate(urls):
                 p = os.path.join(td, f"i{i}.jpg")
                 r = httpx.get(u, timeout=45, follow_redirects=True, headers=headers)
@@ -48,11 +60,14 @@ def make_slideshow(image_urls: list[str], duration_per: float = 3.0,
             segments = []
             for i, p in enumerate(imgs):
                 seg = os.path.join(td, f"s{i}.mp4")
+                dur = 2.5 if i == 0 and imgs and p.endswith("card.jpg") else duration_per
+                fade_out = max(0.0, dur - 0.5)
                 subprocess.run(
                     [ffmpeg, "-y", "-loglevel", "error", "-loop", "1", "-i", p,
-                     "-t", str(duration_per),
+                     "-t", str(dur),
                      "-vf", ("scale=1080:1080:force_original_aspect_ratio=decrease,"
-                             "pad=1080:1080:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30"),
+                             "pad=1080:1080:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,"
+                             f"fade=t=in:st=0:d=0.5,fade=t=out:st={fade_out}:d=0.5"),
                      "-c:v", "libx264", "-preset", "fast", "-crf", "25", seg],
                     check=True)
                 segments.append(seg)

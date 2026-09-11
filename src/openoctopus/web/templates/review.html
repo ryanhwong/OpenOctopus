@@ -16,6 +16,7 @@
   </div>
 </div>
 
+<form method="post" action="/products/{{ p['id'] }}/description/improve" id="desc-improve-form"></form>
 <div class="grid2">
   <section class="card" aria-label="俄语草稿编辑">
     <h2 style="margin-top:0">俄语草稿</h2>
@@ -70,7 +71,11 @@
       </div>
       {% endif %}
 
-      <label for="f-desc">描述 (RU)</label>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <label for="f-desc" style="margin:0">描述 (RU)</label>
+        <button class="btn btn-ghost" type="submit" form="desc-improve-form"
+                style="min-height:28px;padding:0 10px;font-size:12px">AI 优化描述</button>
+      </div>
       <textarea id="f-desc" name="description_ru" rows="8">{{ t.get('description', {}).get('ru', '') }}</textarea>
       {% if t.get('description', {}).get('zh') %}
       <details style="margin:-8px 0 12px">
@@ -207,8 +212,15 @@
 </div>
 
 <section class="card" aria-label="图片前后对比" style="margin-top:20px">
-  <h2 style="margin-top:0;margin-bottom:4px">图片前后对比（{{ images|length }} 张）</h2>
-  <p class="muted" style="margin:0 0 4px">勾选「用于上架」的图片会随商品发布；可展开「自定义重生成」指定修改要求。</p>
+  <div class="toolbar" style="margin-bottom:6px">
+    <div>
+      <h2 style="margin:0;margin-bottom:4px">图片前后对比（{{ images|length }} 张）</h2>
+      <p class="muted" style="margin:0">勾选「用于上架」的图片会随商品发布；可展开「自定义重生成」指定修改要求。</p>
+    </div>
+    <form method="post" action="/products/{{ p['id'] }}/infographic">
+      <button class="btn btn-ghost" type="submit">生成首图信息图</button>
+    </form>
+  </div>
   {% set kind_labels = {"main": "主图", "detail": "详情图", "swatch": "色卡"} %}
   <div class="imggrid">
     {% for img in images %}

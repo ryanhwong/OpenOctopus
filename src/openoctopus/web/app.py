@@ -301,7 +301,8 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                            dup_colors=len(rus) != len(set(rus)))
         content_jobs = conn.execute(
             "SELECT count(*) FROM jobs WHERE status IN ('queued','running') "
-            "AND type IN ('regenerate_video','regenerate_rich','regenerate_titles','fetch_keywords') "
+            "AND type IN ('regenerate_video','regenerate_rich','regenerate_titles',"
+            "'fetch_keywords','make_infographic','improve_description') "
             "AND payload_json LIKE ?", (f'%"product_id": {pid}%',)).fetchone()[0]
         return TEMPLATES.TemplateResponse(request, "review.html",
                                           {"p": p, "t": t, "images": images, "hero": hero,
@@ -484,6 +485,24 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         if conn.execute("SELECT 1 FROM products WHERE id=?", (pid,)).fetchone() is None:
             raise HTTPException(status_code=404, detail="Product not found")
         enqueue(conn, "regenerate_rich", {"product_id": pid})
+        conn.commit()
+        return RedirectResponse(f"/products/{pid}", status_code=303)
+
+    @app.post("/products/{pid}/infographic")
+    def make_infographic_route(pid: int):
+        conn = get_conn(ctx.db_path)
+        if conn.execute("SELECT 1 FROM products WHERE id=?", (pid,)).fetchone() is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+        enqueue(conn, "make_infographic", {"product_id": pid})
+        conn.commit()
+        return RedirectResponse(f"/products/{pid}", status_code=303)
+
+    @app.post("/products/{pid}/description/improve")
+    def improve_description_route(pid: int):
+        conn = get_conn(ctx.db_path)
+        if conn.execute("SELECT 1 FROM products WHERE id=?", (pid,)).fetchone() is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+        enqueue(conn, "improve_description", {"product_id": pid})
         conn.commit()
         return RedirectResponse(f"/products/{pid}", status_code=303)
 

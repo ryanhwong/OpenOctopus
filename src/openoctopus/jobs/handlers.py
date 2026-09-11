@@ -1,5 +1,6 @@
 import asyncio
 import json
+import sys
 
 from openoctopus.category.suggest import (
     fill_attributes,
@@ -280,8 +281,16 @@ def _content_assets(ctx, conn, pid: int, *, title_ru: str, desc_ru: str,
             else:
                 from openoctopus.image.video import make_slideshow
 
-                data = make_slideshow(gallery_urls,
-                                      prefer_host=getattr(ctx.storage, "public_base", ""))
+                bullets_row = conn.execute(
+                    "SELECT ru FROM translations WHERE product_id=? AND field='bullets'",
+                    (pid,)).fetchone()
+                lines = [ln.strip() for ln in
+                         ((bullets_row["ru"] if bullets_row else "") or "").split("\n")
+                         if ln.strip()][:3]
+                data = make_slideshow(
+                    gallery_urls, prefer_host=getattr(ctx.storage, "public_base", ""),
+                    title=title_ru, lines=lines,
+                    font_path=getattr(ctx.settings, "font_path", ""))
                 if data:
                     video_url = ctx.storage.put(key, data, mime="video/mp4")
         except Exception:  # noqa: BLE001
@@ -633,6 +642,63 @@ async def handle_refresh_metrics(ctx, payload: dict) -> None:
     conn.commit()
 
 
+async def handle_make_infographic(ctx, payload: dict) -> None:
+    """用第一张译文主图生成卖点信息图，加入图库（label=infographic）。"""
+    import httpx
+
+    from openoctopus.db import get_conn
+
+    conn = get_conn(ctx.db_path)
+    pid = payload["product_id"]
+    t = {r["field"]: r["ru"] for r in conn.execute(
+        "SELECT field, ru FROM translations WHERE product_id=?", (pid,))}
+    img = conn.execute(
+        "SELECT translated_url FROM images WHERE product_id=? AND kind='main' "
+        "AND translated_url IS NOT NULL AND label != 'infographic' "
+        "ORDER BY selected DESC, id LIMIT 1", (pid,)).fetchone()
+    if img is None or not ctx.storage:
+        return
+    lines = [ln.strip() for ln in (t.get("bullets") or "").split("\n") if ln.strip()][:3]
+    if not lines:
+        lines = [s.strip() for s in (t.get("description") or "").replace("\n", " ").split(".")
+                 if len(s.strip()) > 10][:3]
+    try:
+        async with httpx.AsyncClient(timeout=60, follow_redirects=True) as client:
+            resp = await client.get(img["translated_url"])
+            resp.raise_for_status()
+        from openoctopus.image.infographic import make_infographic
+
+        data = make_infographic(resp.content, t.get("title", ""), lines,
+                                getattr(ctx.settings, "font_path", ""))
+        url = ctx.storage.put(f"products/{pid}/infographic.jpg", data, mime="image/jpeg")
+    except Exception as e:  # noqa: BLE001
+        print(f"[infographic] failed: {e}", file=sys.stderr)
+        return
+    conn.execute("DELETE FROM images WHERE product_id=? AND label='infographic'", (pid,))
+    conn.execute(
+        "INSERT INTO images(product_id, kind, source_url, translated_url, status, selected, label) "
+        "VALUES(?, 'main', ?, ?, 'uploaded', 1, 'infographic')",
+        (pid, img["translated_url"], url))
+    conn.commit()
+
+
+async def handle_improve_description(ctx, payload: dict) -> None:
+    from openoctopus.content.descriptions import improve_description
+    from openoctopus.db import get_conn
+
+    conn = get_conn(ctx.db_path)
+    pid = payload["product_id"]
+    t = {r["field"]: r["ru"] for r in conn.execute(
+        "SELECT field, ru FROM translations WHERE product_id=?", (pid,))}
+    new = await improve_description(ctx.llm_client, ctx.settings.content_model,
+                                    title=t.get("title", ""),
+                                    current=t.get("description", ""),
+                                    bullets=t.get("bullets", ""))
+    if new:
+        upsert_translation(conn, pid, "description", "", new, model="improve")
+        conn.commit()
+
+
 async def handle_fetch_keywords(ctx, payload: dict) -> None:
     from openoctopus.db import get_conn
 
@@ -650,4 +716,6 @@ HANDLERS = {"collect": handle_collect, "generate": handle_generate, "publish": h
             "regenerate_rich": handle_regenerate_rich,
             "regenerate_titles": handle_regenerate_titles,
             "fetch_keywords": handle_fetch_keywords,
-            "refresh_metrics": handle_refresh_metrics}
+            "refresh_metrics": handle_refresh_metrics,
+            "make_infographic": handle_make_infographic,
+            "improve_description": handle_improve_description}
