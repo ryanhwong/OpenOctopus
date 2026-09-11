@@ -50,10 +50,12 @@ async def handle_collect(ctx, payload: dict) -> None:
 
 
 def upsert_translation(conn, pid, field_, zh, ru, model=""):
+    # 空 zh 不覆盖已有中文（编辑表单只提交 ru，避免把原文抹掉）
     conn.execute(
         "INSERT INTO translations(product_id, field, zh, ru, model) VALUES(?,?,?,?,?) "
-        "ON CONFLICT(product_id, field) DO UPDATE SET zh=excluded.zh, ru=excluded.ru, "
-        "model=excluded.model", (pid, field_, zh, ru, model))
+        "ON CONFLICT(product_id, field) DO UPDATE SET "
+        "zh=CASE WHEN excluded.zh != '' THEN excluded.zh ELSE translations.zh END, "
+        "ru=excluded.ru, model=excluded.model", (pid, field_, zh, ru, model))
 
 
 async def handle_generate(ctx, payload: dict) -> None:

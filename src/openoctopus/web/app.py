@@ -216,6 +216,10 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
             from openoctopus.models import RawProduct, variant_dim_index
 
             rraw = RawProduct(**_json.loads(snap["raw_json"]))
+            if not t.get("title", {}).get("zh"):
+                t.setdefault("title", {})["zh"] = rraw.title_zh
+            if not t.get("description", {}).get("zh"):
+                t.setdefault("description", {})["zh"] = rraw.description_zh
             if rraw.skus:
                 dimn = list(rraw.skus[0].props.keys())[variant_dim_index(rraw)]
                 groups: dict[str, list] = {}

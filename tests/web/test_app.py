@@ -464,3 +464,38 @@ def test_review_inline_source_text_and_variant_grid(tmp_path):
     assert "查看中文原文" in html               # 描述折叠对照
     assert "черный" in html and "✓ 词典" in html  # 变体网格 + 词典命中
     assert "красный" in html and "文本" in html    # 未命中词典的提示
+
+
+def test_edit_preserves_chinese_source(tmp_path):
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "review")
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO translations(product_id, field, zh, ru) "
+                 "VALUES(1, 'title', '原文标题', 'Старый заголовок')")
+    conn.commit()
+    c.post("/products/1/edit", data={
+        "title_ru": "Новый заголовок", "description_ru": "D",
+        "ozon_category_id": "42", "attributes_json": "[]",
+    })
+    row = conn.execute("SELECT zh, ru FROM translations WHERE product_id=1 AND field='title'"
+                       ).fetchone()
+    assert row["zh"] == "原文标题"          # 中文原文不被清空
+    assert row["ru"] == "Новый заголовок"
+
+
+def test_review_backfills_source_text_from_snapshot(tmp_path):
+    import json
+
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "review")
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO translations(product_id, field, zh, ru) "
+                 "VALUES(1, 'title', '', 'Ремешок')")
+    conn.execute("INSERT INTO source_snapshots(product_id, raw_json) VALUES(1, ?)",
+                 (json.dumps({"source_url": "u", "platform": "1688",
+                              "title_zh": "尼龙表带", "description_zh": "描述文本",
+                              "skus": []}),))
+    conn.commit()
+    html = c.get("/products/1").text
+    assert "原文：尼龙表带" in html
+    assert "描述文本" in html
