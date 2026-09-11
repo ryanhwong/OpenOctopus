@@ -190,14 +190,17 @@
           <figcaption>源图</figcaption>
         </figure>
         <figure>
+          {% set tu = img['translated_url'] %}
           {% if img['status'] == 'pending' %}
           <div class="imgloading"><span class="spinner"></span></div>
-          {% elif img['translated_url'] %}
-          <img src="{{ img['translated_url'] }}" alt="译文图 #{{ img['id'] }}" loading="lazy">
+          {% elif tu and r2_base and tu.startswith(r2_base) %}
+          <img src="{{ tu }}" alt="译文图 #{{ img['id'] }}" loading="lazy">
+          {% elif tu %}
+          <img src="/media/proxy?u={{ tu|urlencode }}" alt="译文图 #{{ img['id'] }}" loading="lazy">
           {% elif img['status'] == 'failed' %}
           <div class="imgloading err">生成失败</div>
           {% else %}<p class="muted">未生成</p>{% endif %}
-          <figcaption>译文图</figcaption>
+          <figcaption>译文图{% if tu and img['source_url'] == tu %}（无文字，用原图）{% endif %}</figcaption>
         </figure>
       </div>
       <label style="font-weight:400;font-size:13px;display:flex;gap:6px;align-items:center;margin:6px 0 0">

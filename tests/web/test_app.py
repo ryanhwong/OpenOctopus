@@ -423,3 +423,16 @@ def test_review_uses_media_proxy_for_source_images(tmp_path):
     conn.commit()
     html = c.get("/products/1").text
     assert "/media/proxy?u=https%3A//cbu01.alicdn.com/img/a.jpg" in html
+
+
+def test_review_proxies_external_translated_images(tmp_path):
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "review")
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO images(product_id, kind, source_url, translated_url, status) "
+                 "VALUES(1, 'main', 'https://cbu01.alicdn.com/img/a.jpg', "
+                 "'https://cbu01.alicdn.com/img/a.jpg', 'uploaded')")
+    conn.commit()
+    html = c.get("/products/1").text
+    assert html.count("/media/proxy?u=https%3A//cbu01.alicdn.com/img/a.jpg") == 2
+    assert "无文字，用原图" in html

@@ -257,6 +257,7 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                                            "title_warnings": title_warnings,
                                            "keywords": keywords,
                                            "style_label": style_label,
+                                           "r2_base": ctx.settings.r2_public_base_url or "",
                                            "content_jobs": content_jobs,
                                            "currency": (ctx.settings.price_currency or "RUB").upper()})
 
