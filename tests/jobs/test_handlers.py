@@ -242,3 +242,59 @@ async def test_regenerate_rich_writes_json(tmp_path):
     await handle_regenerate_rich(ctx, {"product_id": 1})
     saved = conn.execute("SELECT rich_content FROM products WHERE id=1").fetchone()[0]
     assert "raShowcase" in saved
+
+
+async def test_generate_title_candidates_fallback(tmp_path):
+    from openoctopus.jobs.handlers import _generate_title_candidates
+
+    async def create(**_kw):
+        raise RuntimeError("llm down")
+
+    llm = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    db_path = str(tmp_path / "t.db")
+    init_db(db_path)
+    ctx = SimpleNamespace(db_path=db_path,
+                          settings=SimpleNamespace(content_model="m"), llm_client=llm)
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO products(id, source_url, platform, status) "
+                 "VALUES(1, 'u', '1688', 'generating')")
+    conn.commit()
+    cands = await _generate_title_candidates(
+        ctx, conn, 1, title_zh="尼龙编织表带适用苹果手表", title_ru="Черновой", desc_ru="d")
+    assert len(cands) == 3
+    assert "нейлоновый" in cands[0]["text"].lower()
+    assert conn.execute("SELECT count(*) FROM title_candidates WHERE product_id=1"
+                        ).fetchone()[0] == 3
+
+
+async def test_regenerate_titles_writes_candidates(tmp_path):
+    from openoctopus.jobs.handlers import handle_regenerate_titles
+
+    async def create(**_kw):
+        payload = ('{"titles":[{"style":"seo","text":"Ремешок А для часов"},'
+                   '{"style":"short","text":"Ремешок Б"},{"style":"benefit","text":"Ремешок В"}]}')
+        return SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content=payload))])
+
+    llm = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    db_path = str(tmp_path / "t2.db")
+    init_db(db_path)
+    ctx = SimpleNamespace(db_path=db_path,
+                          settings=SimpleNamespace(content_model="m"), llm_client=llm)
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO products(id, source_url, platform, status) "
+                 "VALUES(1, 'u', '1688', 'review')")
+    conn.execute("INSERT INTO source_snapshots(product_id, raw_json) VALUES(1, ?)",
+                 (json.dumps({"source_url": "u", "platform": "1688", "title_zh": "表带",
+                              "skus": []}),))
+    conn.execute("INSERT INTO translations(product_id, field, zh, ru) "
+                 "VALUES(1, 'title', '表带', 'Черновой')")
+    conn.commit()
+    await handle_regenerate_titles(ctx, {"product_id": 1})
+    rows = conn.execute("SELECT style, ru FROM title_candidates WHERE product_id=1"
+                        ).fetchall()
+    assert len(rows) == 3
+    assert rows[0]["ru"] == "Ремешок А для часов"
+    # 不覆盖当前标题
+    assert conn.execute("SELECT ru FROM translations WHERE product_id=1 AND field='title'"
+                        ).fetchone()["ru"] == "Черновой"

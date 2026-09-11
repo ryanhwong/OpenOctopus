@@ -348,3 +348,29 @@ def test_edit_rejects_invalid_raw_rich_json(tmp_path):
         "attributes_json": "[]", "rc_raw_mode": "1", "rich_content": "{bad json",
     }, follow_redirects=False)
     assert r.status_code == 400
+
+
+def test_review_shows_title_candidates_and_warnings(tmp_path):
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "review")
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO title_candidates(product_id, style, ru) "
+                 "VALUES(1, 'seo', 'Нейлоновый ремешок для Apple Watch')")
+    conn.execute("INSERT INTO translations(product_id, field, ru) VALUES(1, 'title', 'Коротко')")
+    conn.commit()
+    html = c.get("/products/1").text
+    assert "Нейлоновый ремешок для Apple Watch" in html
+    assert "SEO 覆盖型" in html
+    assert "warnbox" in html and "过短" in html
+
+
+def test_titles_regenerate_route_enqueues(tmp_path):
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "review")
+    assert c.post("/products/1/titles/regenerate",
+                  follow_redirects=False).status_code == 303
+    conn = get_conn(db_path)
+    assert conn.execute("SELECT count(*) FROM jobs WHERE type='regenerate_titles'"
+                        ).fetchone()[0] == 1
+    assert c.post("/products/9/titles/regenerate",
+                  follow_redirects=False).status_code == 404

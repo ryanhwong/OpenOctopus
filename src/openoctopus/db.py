@@ -86,6 +86,13 @@ CREATE TABLE IF NOT EXISTS sku_options(
   attr_id INTEGER DEFAULT 0,
   dict_value_id INTEGER,
   UNIQUE(product_id, option_zh));
+
+CREATE TABLE IF NOT EXISTS title_candidates(
+  id INTEGER PRIMARY KEY,
+  product_id INTEGER REFERENCES products(id),
+  style TEXT NOT NULL DEFAULT '',
+  ru TEXT NOT NULL DEFAULT '',
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP);
 """
 
 

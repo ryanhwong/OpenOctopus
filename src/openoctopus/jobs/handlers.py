@@ -73,6 +73,18 @@ async def handle_generate(ctx, payload: dict) -> None:
     upsert_translation(conn, pid, "description", raw.description_zh, tc.description_ru, tc.model)
 
     conn.commit()  # 先落盘文案，下面逐张提交，单图失败不挡整单
+
+    # 标题工程：生成结构化候选，默认采用第一个（人审页可切换候选）
+    try:
+        cands = await _generate_title_candidates(
+            ctx, conn, pid, title_zh=raw.title_zh,
+            title_ru=tc.title_ru, desc_ru=tc.description_ru)
+        if cands:
+            upsert_translation(conn, pid, "title", raw.title_zh, cands[0]["text"])
+            conn.commit()
+    except Exception:  # noqa: BLE001, S110
+        pass
+
     for row in conn.execute("SELECT id, kind, source_url FROM images "
                             "WHERE product_id=? AND status='pending'", (pid,)).fetchall():
         key_hint = f"products/{pid}/{row['kind']}-{row['id']}"
@@ -160,6 +172,38 @@ async def _resolve_sku_options(ctx, conn, pid: int, raw, cat_key: str,
             "option_ru=excluded.option_ru, attr_id=excluded.attr_id, "
             "dict_value_id=excluded.dict_value_id",
             (pid, o, ru, attr_id, matches.get(ru)))
+
+
+def _save_title_candidates(conn, pid: int, cands: list[dict]) -> None:
+    conn.execute("DELETE FROM title_candidates WHERE product_id=?", (pid,))
+    for c in cands:
+        conn.execute("INSERT INTO title_candidates(product_id, style, ru) VALUES(?,?,?)",
+                     (pid, c.get("style") or "", (c.get("text") or "").strip()[:200]))
+    conn.commit()
+
+
+async def _generate_title_candidates(ctx, conn, pid: int, *, title_zh: str,
+                                     title_ru: str, desc_ru: str) -> list[dict]:
+    """生成候选标题并落库；LLM 失败时模板兜底。"""
+    from openoctopus.content.titles import (
+        compat_ru,
+        generate_titles,
+        material_ru,
+        template_titles,
+    )
+
+    compat = compat_ru(title_zh)
+    try:
+        cands = await generate_titles(
+            ctx.llm_client, ctx.settings.content_model,
+            title_zh=title_zh, title_ru=title_ru, desc_ru=desc_ru,
+            compat=compat, type_ru="ремешок для умных часов" if compat else "")
+    except Exception:  # noqa: BLE001
+        cands = template_titles(
+            type_ru="Ремешок для умных часов" if compat else "Ремешок",
+            material=material_ru(title_zh), compat=compat)
+    _save_title_candidates(conn, pid, cands)
+    return cands
 
 
 def _material(title_zh: str) -> str:
@@ -483,7 +527,18 @@ async def handle_regenerate_rich(ctx, payload: dict) -> None:
                     force_rich=True)
 
 
+async def handle_regenerate_titles(ctx, payload: dict) -> None:
+    from openoctopus.db import get_conn
+
+    conn = get_conn(ctx.db_path)
+    pid = payload["product_id"]
+    info = _regen_context(conn, pid)
+    await _generate_title_candidates(ctx, conn, pid, title_zh=info["title_zh"],
+                                     title_ru=info["title_ru"], desc_ru=info["desc_ru"])
+
+
 HANDLERS = {"collect": handle_collect, "generate": handle_generate, "publish": handle_publish,
             "regenerate_image": handle_regenerate_image,
             "regenerate_video": handle_regenerate_video,
-            "regenerate_rich": handle_regenerate_rich}
+            "regenerate_rich": handle_regenerate_rich,
+            "regenerate_titles": handle_regenerate_titles}

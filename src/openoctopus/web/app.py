@@ -207,17 +207,25 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                                      "price_rub": round(cny * rate), "combos": len(grp)})
         hero = next((r["translated_url"] for r in images
                      if r["kind"] == "main" and r["translated_url"]), None)
+        from openoctopus.content.titles import check_title, style_label
         from openoctopus.listing.enrich import parse_rich_content
 
         rich_blocks = parse_rich_content(p.get("rich_content") or "")
+        title_candidates = conn.execute(
+            "SELECT id, style, ru FROM title_candidates WHERE product_id=? ORDER BY id",
+            (pid,)).fetchall()
+        title_warnings = check_title(t.get("title", {}).get("ru", ""))
         content_jobs = conn.execute(
             "SELECT count(*) FROM jobs WHERE status IN ('queued','running') "
-            "AND type IN ('regenerate_video','regenerate_rich') "
+            "AND type IN ('regenerate_video','regenerate_rich','regenerate_titles') "
             "AND payload_json LIKE ?", (f'%"product_id": {pid}%',)).fetchone()[0]
         return TEMPLATES.TemplateResponse(request, "review.html",
                                           {"p": p, "t": t, "images": images, "hero": hero,
                                            "mapping": mapping, "cats": cats, "variants": variants,
                                            "rich_blocks": rich_blocks,
+                                           "title_candidates": title_candidates,
+                                           "title_warnings": title_warnings,
+                                           "style_label": style_label,
                                            "content_jobs": content_jobs,
                                            "currency": (ctx.settings.price_currency or "RUB").upper()})
 
@@ -345,6 +353,15 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
             raise HTTPException(status_code=404, detail="Image not found")
         enqueue(conn, "regenerate_image", {"product_id": pid, "image_id": imgid,
                                             "prompt_override": prompt_override.strip()})
+        return RedirectResponse(f"/products/{pid}", status_code=303)
+
+    @app.post("/products/{pid}/titles/regenerate")
+    def regenerate_titles(pid: int):
+        conn = get_conn(ctx.db_path)
+        if conn.execute("SELECT 1 FROM products WHERE id=?", (pid,)).fetchone() is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+        enqueue(conn, "regenerate_titles", {"product_id": pid})
+        conn.commit()
         return RedirectResponse(f"/products/{pid}", status_code=303)
 
     @app.post("/products/{pid}/content/video/regenerate")

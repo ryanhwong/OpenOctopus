@@ -21,7 +21,32 @@
     <h2 style="margin-top:0">俄语草稿</h2>
     <form method="post" action="/products/{{ p['id'] }}/edit" id="edit-form">
       <label for="f-title">标题 (RU)</label>
+      {% if title_candidates %}
+      <div class="cand-list" role="radiogroup" aria-label="标题候选">
+        {% for c in title_candidates %}
+        <label class="cand">
+          <input type="radio" name="title_pick" value="{{ c['id'] }}"
+                 data-text="{{ c['ru'] }}"
+                 onchange="document.getElementById('f-title').value=this.dataset.text;document.getElementById('f-title').dispatchEvent(new Event('input'))">
+          <span class="cand-body">
+            <span class="cand-style">{{ style_label(c['style']) }}</span>
+            <span class="cand-text">{{ c['ru'] }}</span>
+          </span>
+        </label>
+        {% endfor %}
+      </div>
+      <form method="post" action="/products/{{ p['id'] }}/titles/regenerate" style="margin:0 0 8px">
+        <button class="btn btn-ghost" type="submit"
+                style="min-height:32px;padding:2px 12px">重新生成候选</button>
+      </form>
+      {% endif %}
       <input id="f-title" name="title_ru" type="text" value="{{ t.get('title', {}).get('ru', '') }}">
+      <span class="muted" id="title-count" aria-live="polite"></span>
+      {% if title_warnings %}
+      <div class="warnbox" role="alert">
+        {% for w in title_warnings %}<div class="warnline">! {{ w }}</div>{% endfor %}
+      </div>
+      {% endif %}
 
       <label for="f-desc">描述 (RU)</label>
       <textarea id="f-desc" name="description_ru" rows="8">{{ t.get('description', {}).get('ru', '') }}</textarea>
@@ -190,6 +215,20 @@
   border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
 </style>
+
+<script>
+(function () {
+  const ti = document.getElementById('f-title');
+  const cnt = document.getElementById('title-count');
+  if (!ti || !cnt) return;
+  const upd = () => {
+    const n = ti.value.length;
+    cnt.textContent = n + ' / 150 字符' + (n > 150 ? '（超长，建议缩短）' : '');
+  };
+  ti.addEventListener('input', upd);
+  upd();
+})();
+</script>
 
 {% if p['status'] == 'generating' or content_jobs %}
 <script>
