@@ -224,11 +224,18 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                         groups.setdefault(s.props[dimn], []).append(s)
                 omap = {r["option_zh"]: dict(r) for r in conn.execute(
                     "SELECT * FROM sku_options WHERE product_id=?", (pid,))}
+                swatches = {r["label"]: (r["translated_url"] or r["source_url"])
+                            for r in conn.execute(
+                                "SELECT label, translated_url, source_url FROM images "
+                                "WHERE product_id=? AND kind='swatch'", (pid,))}
                 rate = ctx.settings.price_cny_to_rub
                 for opt, grp in sorted(groups.items()):
                     cny = min((g.price_cny for g in grp if g.price_cny), default=0) or rraw.price_cny
-                    variants.append({"zh": opt, "ru": omap.get(opt, {}).get("option_ru", ""),
-                                     "price_rub": round(cny * rate), "combos": len(grp)})
+                    o = omap.get(opt, {})
+                    variants.append({"zh": opt, "ru": o.get("option_ru", ""),
+                                     "price_rub": round(cny * rate), "combos": len(grp),
+                                     "matched": bool(o.get("dict_value_id")),
+                                     "swatch": swatches.get(opt, "")})
         hero = next((r["translated_url"] for r in images
                      if r["kind"] == "main" and r["translated_url"]), None)
         from openoctopus.content.titles import check_title, style_label

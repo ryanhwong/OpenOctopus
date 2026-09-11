@@ -436,3 +436,31 @@ def test_review_proxies_external_translated_images(tmp_path):
     html = c.get("/products/1").text
     assert html.count("/media/proxy?u=https%3A//cbu01.alicdn.com/img/a.jpg") == 2
     assert "无文字，用原图" in html
+
+
+def test_review_inline_source_text_and_variant_grid(tmp_path):
+    import json
+
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "review")
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO translations(product_id, field, zh, ru) "
+                 "VALUES(1, 'title', '手表带', 'Ремешок')")
+    conn.execute("INSERT INTO translations(product_id, field, zh, ru) "
+                 "VALUES(1, 'description', '中文描述内容', 'Описание')")
+    conn.execute("INSERT INTO source_snapshots(product_id, raw_json) VALUES(1, ?)",
+                 (json.dumps({"source_url": "u", "platform": "1688", "title_zh": "手表带",
+                              "price_cny": 5.0,
+                              "skus": [{"props": {"颜色": "黑色"}, "price_cny": 5.0},
+                                       {"props": {"颜色": "红色"}, "price_cny": 6.0}]}),
+                  ))
+    conn.execute("INSERT INTO sku_options(product_id, option_zh, option_ru, attr_id, "
+                 "dict_value_id) VALUES(1, '黑色', 'черный', 10096, 61574)")
+    conn.execute("INSERT INTO sku_options(product_id, option_zh, option_ru, attr_id) "
+                 "VALUES(1, '红色', 'красный', 10096)")
+    conn.commit()
+    html = c.get("/products/1").text
+    assert "原文：手表带" in html              # 标题随文对照
+    assert "查看中文原文" in html               # 描述折叠对照
+    assert "черный" in html and "✓ 词典" in html  # 变体网格 + 词典命中
+    assert "красный" in html and "文本" in html    # 未命中词典的提示
