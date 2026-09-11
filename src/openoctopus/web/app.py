@@ -215,9 +215,15 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
             "SELECT id, style, ru FROM title_candidates WHERE product_id=? ORDER BY id",
             (pid,)).fetchall()
         title_warnings = check_title(t.get("title", {}).get("ru", ""))
+        keywords: list = []
+        if p.get("keywords"):
+            try:
+                keywords = _json.loads(p["keywords"])
+            except _json.JSONDecodeError:
+                keywords = []
         content_jobs = conn.execute(
             "SELECT count(*) FROM jobs WHERE status IN ('queued','running') "
-            "AND type IN ('regenerate_video','regenerate_rich','regenerate_titles') "
+            "AND type IN ('regenerate_video','regenerate_rich','regenerate_titles','fetch_keywords') "
             "AND payload_json LIKE ?", (f'%"product_id": {pid}%',)).fetchone()[0]
         return TEMPLATES.TemplateResponse(request, "review.html",
                                           {"p": p, "t": t, "images": images, "hero": hero,
@@ -225,13 +231,14 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                                            "rich_blocks": rich_blocks,
                                            "title_candidates": title_candidates,
                                            "title_warnings": title_warnings,
+                                           "keywords": keywords,
                                            "style_label": style_label,
                                            "content_jobs": content_jobs,
                                            "currency": (ctx.settings.price_currency or "RUB").upper()})
 
     @app.post("/products/{pid}/edit")
-    async def edit(request: Request, pid: int, title_ru: str = Form(...),
-                   description_ru: str = Form(...),
+    async def edit(request: Request, pid: int, title_ru: str = Form(""),
+                   description_ru: str = Form(""),
                    price_rub: str = Form(""), stock: str = Form("0"),
                    ozon_category_id: str = Form(...),
                    attributes_json: str = Form("{}"), length_mm: str = Form(""),
@@ -262,6 +269,14 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                 return HTMLResponse("Invalid price_rub", status_code=400)
         else:
             price_rub_val = None
+        if not title_ru.strip():
+            pick = str(form.get("title_pick") or "")
+            if pick.isdigit():
+                row = conn.execute(
+                    "SELECT ru FROM title_candidates WHERE id=? AND product_id=?",
+                    (int(pick), pid)).fetchone()
+                if row:
+                    title_ru = row["ru"]
         upsert_translation(conn, pid, "title", "", title_ru)
         upsert_translation(conn, pid, "description", "", description_ru)
         if price_rub_val is not None:
@@ -353,6 +368,15 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
             raise HTTPException(status_code=404, detail="Image not found")
         enqueue(conn, "regenerate_image", {"product_id": pid, "image_id": imgid,
                                             "prompt_override": prompt_override.strip()})
+        return RedirectResponse(f"/products/{pid}", status_code=303)
+
+    @app.post("/products/{pid}/keywords/fetch")
+    def fetch_keywords(pid: int):
+        conn = get_conn(ctx.db_path)
+        if conn.execute("SELECT 1 FROM products WHERE id=?", (pid,)).fetchone() is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+        enqueue(conn, "fetch_keywords", {"product_id": pid})
+        conn.commit()
         return RedirectResponse(f"/products/{pid}", status_code=303)
 
     @app.post("/products/{pid}/titles/regenerate")

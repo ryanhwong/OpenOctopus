@@ -35,6 +35,8 @@ class Settings(BaseSettings):
 
     font_path: str = "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"
     playwright_storage_state: str = "data/playwright_state.json"
+    # 抓取 ozon.ru 搜索词用的出口代理（住宅/俄罗斯 IP），留空则跳过关键词抓取
+    ozon_scrape_proxy: str = ""
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

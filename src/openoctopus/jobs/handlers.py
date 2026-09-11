@@ -75,6 +75,11 @@ async def handle_generate(ctx, payload: dict) -> None:
     conn.commit()  # 先落盘文案，下面逐张提交，单图失败不挡整单
 
     # 标题工程：生成结构化候选，默认采用第一个（人审页可切换候选）
+    if getattr(ctx.settings, "ozon_scrape_proxy", ""):
+        try:
+            await _fetch_keywords(ctx, conn, pid, query_ru=tc.title_ru)
+        except Exception:  # noqa: BLE001, S110
+            pass
     try:
         cands = await _generate_title_candidates(
             ctx, conn, pid, title_zh=raw.title_zh,
@@ -192,18 +197,45 @@ async def _generate_title_candidates(ctx, conn, pid: int, *, title_zh: str,
         template_titles,
     )
 
+    keywords: list[str] = []
+    row = conn.execute("SELECT keywords FROM products WHERE id=?", (pid,)).fetchone()
+    if row and row["keywords"]:
+        try:
+            keywords = json.loads(row["keywords"])
+        except json.JSONDecodeError:
+            keywords = []
     compat = compat_ru(title_zh)
     try:
         cands = await generate_titles(
             ctx.llm_client, ctx.settings.content_model,
             title_zh=title_zh, title_ru=title_ru, desc_ru=desc_ru,
-            compat=compat, type_ru="ремешок для умных часов" if compat else "")
+            compat=compat, type_ru="ремешок для умных часов" if compat else "",
+            keywords=keywords)
     except Exception:  # noqa: BLE001
         cands = template_titles(
             type_ru="Ремешок для умных часов" if compat else "Ремешок",
             material=material_ru(title_zh), compat=compat)
     _save_title_candidates(conn, pid, cands)
     return cands
+
+
+async def _fetch_keywords(ctx, conn, pid: int, *, query_ru: str) -> list[str]:
+    """抓 Ozon 搜索词并落库；任何失败返回 []（不影响主流程）。"""
+    from openoctopus.content.keywords import extract_keywords, fetch_ozon_titles
+
+    q = (query_ru or "").split(",")[0].strip()[:60]
+    if not q:
+        return []
+    proxy = getattr(ctx.settings, "ozon_scrape_proxy", "") or ""
+    titles = await fetch_ozon_titles(q, proxy=proxy)
+    if not titles:
+        return []
+    keywords = await extract_keywords(ctx.llm_client, ctx.settings.content_model, titles)
+    if keywords:
+        conn.execute("UPDATE products SET keywords=? WHERE id=?",
+                     (json.dumps(keywords, ensure_ascii=False), pid))
+        conn.commit()
+    return keywords
 
 
 def _material(title_zh: str) -> str:
@@ -537,8 +569,20 @@ async def handle_regenerate_titles(ctx, payload: dict) -> None:
                                      title_ru=info["title_ru"], desc_ru=info["desc_ru"])
 
 
+async def handle_fetch_keywords(ctx, payload: dict) -> None:
+    from openoctopus.db import get_conn
+
+    conn = get_conn(ctx.db_path)
+    pid = payload["product_id"]
+    info = _regen_context(conn, pid)
+    await _fetch_keywords(ctx, conn, pid, query_ru=info["title_ru"])
+    await _generate_title_candidates(ctx, conn, pid, title_zh=info["title_zh"],
+                                     title_ru=info["title_ru"], desc_ru=info["desc_ru"])
+
+
 HANDLERS = {"collect": handle_collect, "generate": handle_generate, "publish": handle_publish,
             "regenerate_image": handle_regenerate_image,
             "regenerate_video": handle_regenerate_video,
             "regenerate_rich": handle_regenerate_rich,
-            "regenerate_titles": handle_regenerate_titles}
+            "regenerate_titles": handle_regenerate_titles,
+            "fetch_keywords": handle_fetch_keywords}

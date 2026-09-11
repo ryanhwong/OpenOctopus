@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS products(
   offer_id_prefix TEXT,
   video_url TEXT,
   rich_content TEXT,
+  keywords TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP);
 
@@ -126,5 +127,7 @@ def init_db(path: str) -> None:
     for col in ("video_url", "rich_content"):
         if col not in prod_cols:
             conn.execute(f"ALTER TABLE products ADD COLUMN {col} TEXT")
+    if "keywords" not in prod_cols:
+        conn.execute("ALTER TABLE products ADD COLUMN keywords TEXT")
     conn.commit()
     conn.close()

@@ -374,3 +374,34 @@ def test_titles_regenerate_route_enqueues(tmp_path):
                         ).fetchone()[0] == 1
     assert c.post("/products/9/titles/regenerate",
                   follow_redirects=False).status_code == 404
+
+
+def test_keywords_fetch_route_and_display(tmp_path):
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "review")
+    assert c.post("/products/1/keywords/fetch", follow_redirects=False).status_code == 303
+    conn = get_conn(db_path)
+    assert conn.execute("SELECT count(*) FROM jobs WHERE type='fetch_keywords'"
+                        ).fetchone()[0] == 1
+    conn.execute("UPDATE products SET keywords='[\"ремешок для часов\"]' WHERE id=1")
+    conn.commit()
+    html = c.get("/products/1").text
+    assert "已抓取搜索词" in html and "ремешок для часов" in html
+
+
+def test_edit_uses_title_pick_when_title_empty(tmp_path):
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "review")
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO title_candidates(product_id, style, ru) "
+                 "VALUES(1, 'seo', 'Выбранный заголовок для часов')")
+    conn.commit()
+    cid = conn.execute("SELECT id FROM title_candidates").fetchone()[0]
+    r = c.post("/products/1/edit", data={
+        "title_ru": "", "description_ru": "D", "ozon_category_id": "42",
+        "attributes_json": "[]", "title_pick": str(cid),
+    }, follow_redirects=False)
+    assert r.status_code == 303
+    saved = conn.execute("SELECT ru FROM translations WHERE product_id=1 AND field='title'"
+                         ).fetchone()["ru"]
+    assert saved == "Выбранный заголовок для часов"

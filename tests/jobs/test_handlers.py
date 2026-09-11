@@ -298,3 +298,48 @@ async def test_regenerate_titles_writes_candidates(tmp_path):
     # 不覆盖当前标题
     assert conn.execute("SELECT ru FROM translations WHERE product_id=1 AND field='title'"
                         ).fetchone()["ru"] == "Черновой"
+
+
+async def test_fetch_keywords_stores_and_regenerates(tmp_path, monkeypatch):
+    from openoctopus.content import keywords as kw
+    from openoctopus.jobs import handlers as h
+
+    async def fake_fetch(query, proxy="", limit=10, timeout_ms=45000):
+        assert proxy == "http://p:1"
+        return ["Ремешок для Apple Watch нейлоновый", "Браслет для часов силиконовый"]
+
+    monkeypatch.setattr(kw, "fetch_ozon_titles", fake_fetch)
+
+    kw_payload = '{"keywords": ["ремешок для apple watch", "браслет для часов"]}'
+    titles_payload = ('{"titles":[{"style":"seo","text":"Ремешок А"},'
+                      '{"style":"short","text":"Ремешок Б"},'
+                      '{"style":"benefit","text":"Ремешок В"}]}')
+
+    async def create(**kwargs):
+        system = kwargs["messages"][0]["content"]
+        payload = kw_payload if "keywords" in system.lower() else titles_payload
+        return SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content=payload))])
+
+    llm = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    db_path = str(tmp_path / "kw.db")
+    init_db(db_path)
+    ctx = SimpleNamespace(
+        db_path=db_path, llm_client=llm,
+        settings=SimpleNamespace(content_model="m", ozon_scrape_proxy="http://p:1"))
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO products(id, source_url, platform, status) "
+                 "VALUES(1, 'u', '1688', 'review')")
+    conn.execute("INSERT INTO source_snapshots(product_id, raw_json) VALUES(1, ?)",
+                 (json.dumps({"source_url": "u", "platform": "1688",
+                              "title_zh": "表带", "skus": []}),))
+    conn.execute("INSERT INTO translations(product_id, field, zh, ru) "
+                 "VALUES(1, 'title', '表带', 'Ремешок для Apple Watch')")
+    conn.commit()
+
+    await h.handle_fetch_keywords(ctx, {"product_id": 1})
+
+    saved = conn.execute("SELECT keywords FROM products WHERE id=1").fetchone()[0]
+    assert "ремешок для apple watch" in saved
+    assert conn.execute("SELECT count(*) FROM title_candidates WHERE product_id=1"
+                        ).fetchone()[0] == 3
