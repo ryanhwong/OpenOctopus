@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}运营看板 - OpenOctopus{% endblock %}
+{% block content %}
+<div class="card" style="margin-bottom:20px">
+  <div class="toolbar">
+    <div>
+      <h1 style="margin-bottom:4px">运营看板</h1>
+      <p class="muted" style="margin:0">已上架商品的内容评级、库存与可售状态；点「刷新数据」从 Ozon 拉取最新指标。</p>
+    </div>
+    <form method="post" action="/dashboard/refresh">
+      <button class="btn btn-primary" type="submit">刷新数据</button>
+    </form>
+  </div>
+  {% if summary and summary['n'] %}
+  <div class="statrow">
+    <div class="stat"><div class="statnum">{{ summary['n'] }}</div><div class="statlbl">在售商品</div></div>
+    <div class="stat"><div class="statnum">{{ summary['skus'] }}</div><div class="statlbl">总 SKU</div></div>
+    <div class="stat"><div class="statnum">{{ summary['avg_rating']|round(0)|int if summary['avg_rating'] else '—' }}</div><div class="statlbl">平均内容评级</div></div>
+    <div class="stat"><div class="statnum">{{ summary['stock_total'] or 0 }}</div><div class="statlbl">库存合计</div></div>
+  </div>
+  {% endif %}
+</div>
+
+{% if rows %}
+<div class="card">
+  <div class="tablewrap">
+    <table class="dtable">
+      <thead>
+        <tr><th>商品</th><th>SKU</th><th>内容评级</th><th>库存</th><th>可售</th><th>问题</th><th>刷新时间</th></tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td><a href="/products/{{ r['product_id'] }}">{{ (r['title_ru'] or r['source_url'] or '')[:42] }}</a></td>
+          <td>{{ r['skus'] }}</td>
+          <td>
+            {% set rt = r['rating_min'] %}
+            {% if rt is not none %}
+            <span class="rating {% if rt >= 100 %}rating-good{% elif rt >= 80 %}rating-mid{% else %}rating-bad{% endif %}">{{ rt }}</span>
+            {% if r['rating_max'] != r['rating_min'] %}~{{ r['rating_max'] }}{% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td>{{ r['stock_total'] or 0 }}</td>
+          <td>{{ r['available_n'] }}/{{ r['skus'] }}</td>
+          <td class="muted">{{ (r['reasons'] or '')[:60] }}</td>
+          <td class="muted">{{ (r['refreshed_at'] or '')[:16] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <p class="muted">暂无数据：点右上「刷新数据」从 Ozon 拉取已上架商品的指标（内容评级 / 库存 / 可售状态）。</p>
+</div>
+{% endif %}
+{% endblock %}

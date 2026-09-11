@@ -482,6 +482,55 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         conn.commit()
         return RedirectResponse("/", status_code=303)
 
+    @app.get("/dashboard", response_class=HTMLResponse)
+    def dashboard(request: Request):
+        conn = get_conn(ctx.db_path)
+        rows = conn.execute(
+            "SELECT m.product_id, p.status, p.source_url, p.last_price_sent, "
+            "(SELECT t.ru FROM translations t WHERE t.product_id=m.product_id "
+            " AND t.field='title' LIMIT 1) AS title_ru, "
+            "COUNT(*) AS skus, MIN(m.rating) AS rating_min, MAX(m.rating) AS rating_max, "
+            "SUM(m.stock) AS stock_total, "
+            "SUM(CASE WHEN m.availability='AVAILABLE' THEN 1 ELSE 0 END) AS available_n, "
+            "GROUP_CONCAT(DISTINCT CASE WHEN m.reason != '' THEN m.reason END) AS reasons, "
+            "MAX(m.refreshed_at) AS refreshed_at "
+            "FROM metrics m LEFT JOIN products p ON p.id=m.product_id "
+            "GROUP BY m.product_id ORDER BY rating_min ASC, m.product_id").fetchall()
+        summary = conn.execute(
+            "SELECT COUNT(DISTINCT product_id) AS n, COUNT(*) AS skus, "
+            "AVG(rating) AS avg_rating, SUM(stock) AS stock_total FROM metrics").fetchone()
+        return TEMPLATES.TemplateResponse(request, "dashboard.html", {
+            "rows": rows, "summary": summary, "currency":
+            (ctx.settings.price_currency or "RUB").upper()})
+
+    @app.post("/dashboard/refresh")
+    def dashboard_refresh():
+        conn = get_conn(ctx.db_path)
+        enqueue(conn, "refresh_metrics", {})
+        conn.commit()
+        return RedirectResponse("/dashboard", status_code=303)
+
+    @app.get("/jobs", response_class=HTMLResponse)
+    def jobs_page(request: Request):
+        conn = get_conn(ctx.db_path)
+        rows = []
+        for j in conn.execute(
+                "SELECT id, type, status, retries, error, created_at, payload_json FROM jobs "
+                "ORDER BY id DESC LIMIT 100").fetchall():
+            try:
+                pid = _json.loads(j["payload_json"] or "{}").get("product_id")
+            except _json.JSONDecodeError:
+                pid = None
+            rows.append({**dict(j), "product_id": pid})
+        log_tail = "(日志不可读)"
+        try:
+            with open(ctx.settings.log_path, errors="replace") as f:
+                log_tail = "".join(f.readlines()[-120:]) or "(空)"
+        except OSError:
+            pass
+        return TEMPLATES.TemplateResponse(request, "jobs.html",
+                                          {"jobs": rows, "log_tail": log_tail})
+
     @app.post("/jobs/{jid}/retry")
     def retry(jid: int):
         conn = get_conn(ctx.db_path)

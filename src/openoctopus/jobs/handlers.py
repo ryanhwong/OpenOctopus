@@ -579,6 +579,60 @@ async def handle_regenerate_titles(ctx, payload: dict) -> None:
                                      title_ru=info["title_ru"], desc_ru=info["desc_ru"])
 
 
+async def handle_refresh_metrics(ctx, payload: dict) -> None:
+    """拉取已上架商品的评分/价格/库存/可售状态，写入 metrics 表。"""
+    from openoctopus.db import get_conn
+
+    conn = get_conn(ctx.db_path)
+    products = conn.execute(
+        "SELECT id, ozon_product_id FROM products WHERE ozon_product_id IS NOT NULL"
+    ).fetchall()
+    pid_local: dict[int, int] = {}
+    for row in products:
+        listing = conn.execute(
+            "SELECT result_json FROM listings WHERE product_id=? ORDER BY id DESC LIMIT 1",
+            (row["id"],)).fetchone()
+        pids: list[int] = []
+        if listing:
+            try:
+                items = json.loads(listing["result_json"] or "{}").get("items", [])
+                pids = [int(it["product_id"]) for it in items if it.get("product_id")]
+            except (ValueError, TypeError, json.JSONDecodeError):
+                pids = []
+        if int(row["ozon_product_id"] or 0):
+            pids.append(int(row["ozon_product_id"]))
+        for p in dict.fromkeys(pids):
+            pid_local[p] = row["id"]
+    if not pid_local:
+        return
+    all_pids = list(pid_local)
+    infos: list[dict] = []
+    for i in range(0, len(all_pids), 100):
+        infos.extend(await ctx.ozon.product_info_list(all_pids[i:i + 100]))
+
+    skus = [str(it["sku"]) for it in infos if it.get("sku")]
+    ratings: dict[str, int] = {}
+    for i in range(0, len(skus), 500):
+        for r in await ctx.ozon.rating_by_sku(skus[i:i + 500]):
+            ratings[str(r.get("sku"))] = int(r.get("rating") or 0)
+
+    conn.execute("DELETE FROM metrics")
+    for it in infos:
+        avail = (it.get("availabilities") or [{}])[0]
+        reasons = avail.get("reasons") or []
+        reason = (reasons[0].get("human_text", {}) or {}).get("text", "") if reasons else ""
+        stocks = it.get("stocks") or {}
+        present = sum(s.get("present", 0) for s in (stocks.get("stocks") or []))
+        sku = str(it.get("sku") or "")
+        conn.execute(
+            "INSERT INTO metrics(product_id, sku, rating, price, stock, availability, reason) "
+            "VALUES(?,?,?,?,?,?,?)",
+            (pid_local.get(int(it.get("id") or 0), 0), sku, ratings.get(sku),
+             float(it.get("price") or 0), present,
+             str(avail.get("availability") or ""), reason))
+    conn.commit()
+
+
 async def handle_fetch_keywords(ctx, payload: dict) -> None:
     from openoctopus.db import get_conn
 
@@ -595,4 +649,5 @@ HANDLERS = {"collect": handle_collect, "generate": handle_generate, "publish": h
             "regenerate_video": handle_regenerate_video,
             "regenerate_rich": handle_regenerate_rich,
             "regenerate_titles": handle_regenerate_titles,
-            "fetch_keywords": handle_fetch_keywords}
+            "fetch_keywords": handle_fetch_keywords,
+            "refresh_metrics": handle_refresh_metrics}

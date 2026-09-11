@@ -343,3 +343,34 @@ async def test_fetch_keywords_stores_and_regenerates(tmp_path, monkeypatch):
     assert "ремешок для apple watch" in saved
     assert conn.execute("SELECT count(*) FROM title_candidates WHERE product_id=1"
                         ).fetchone()[0] == 3
+
+
+async def test_refresh_metrics_stores_rows(tmp_path):
+    from openoctopus.jobs.handlers import handle_refresh_metrics
+
+    class FakeOzon:
+        async def product_info_list(self, pids):
+            return [{"id": p, "sku": 100 + p, "price": "75",
+                     "stocks": {"stocks": [{"present": 5}]},
+                     "availabilities": [{"availability": "AVAILABLE", "reasons": []}]}
+                    for p in pids]
+
+        async def rating_by_sku(self, skus):
+            return [{"sku": int(s), "rating": 100} for s in skus]
+
+    db_path = str(tmp_path / "m.db")
+    init_db(db_path)
+    ctx = SimpleNamespace(db_path=db_path, ozon=FakeOzon())
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO products(id, source_url, platform, status, ozon_product_id) "
+                 "VALUES(1, 'u', '1688', 'listed', '11')")
+    conn.execute("INSERT INTO listings(product_id, import_task_id, result_json) VALUES(1, 't', ?)",
+                 (json.dumps({"items": [{"offer_id": "v21-1", "product_id": 11,
+                                         "status": "imported"}]}),))
+    conn.commit()
+    await handle_refresh_metrics(ctx, {})
+    rows = conn.execute("SELECT sku, rating, price, stock, availability FROM metrics").fetchall()
+    assert len(rows) == 1
+    assert rows[0]["rating"] == 100
+    assert rows[0]["availability"] == "AVAILABLE"
+    assert rows[0]["stock"] == 5

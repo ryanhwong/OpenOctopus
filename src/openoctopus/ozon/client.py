@@ -55,3 +55,16 @@ class OzonClient:
     async def set_stocks(self, stocks: list[dict]) -> dict:
         """stocks 每项: {offer_id, product_id, stock, warehouse_id}"""
         return await self._post("/v2/products/stocks", {"stocks": stocks})
+
+    async def product_info_list(self, product_ids: list[int]) -> list[dict]:
+        out = await self._post("/v3/product/info/list", {"product_id": product_ids})
+        return out.get("items", []) if isinstance(out, dict) else []
+
+    async def rating_by_sku(self, skus: list[str]) -> list[dict]:
+        out = await self._post("/v1/product/rating-by-sku", {"skus": skus})
+        return out.get("products", []) if isinstance(out, dict) else []
+
+    async def product_prices_info(self, offer_ids: list[str]) -> list[dict]:
+        out = await self._post("/v5/product/info/prices",
+                               {"filter": {"offer_id": offer_ids}, "limit": len(offer_ids) or 1})
+        return out.get("items", []) if isinstance(out, dict) else []

@@ -100,6 +100,17 @@ CREATE TABLE IF NOT EXISTS settings_kv(
   key TEXT PRIMARY KEY,
   value TEXT DEFAULT '',
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP);
+
+CREATE TABLE IF NOT EXISTS metrics(
+  id INTEGER PRIMARY KEY,
+  product_id INTEGER REFERENCES products(id),
+  sku TEXT,
+  rating INTEGER,
+  price REAL,
+  stock INTEGER DEFAULT 0,
+  availability TEXT DEFAULT '',
+  reason TEXT DEFAULT '',
+  refreshed_at TEXT DEFAULT CURRENT_TIMESTAMP);
 """
 
 

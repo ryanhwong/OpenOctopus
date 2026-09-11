@@ -26,7 +26,8 @@ a{color:var(--primary)}
   padding:12px 24px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:30}
 .brand{font-weight:700;font-size:18px;color:var(--primary);text-decoration:none;white-space:nowrap}
 .brand small{font-weight:400;color:var(--muted);font-size:12px;margin-left:8px}
-.topbar nav{margin-left:auto;display:flex;gap:8px;align-items:center}
+.mainnav{display:flex;gap:6px}
+.rightnav{margin-left:auto;display:flex;gap:8px;align-items:center}
 .wrap{max-width:1280px;margin:0 auto;padding:24px 24px 96px}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
   padding:20px}
@@ -139,6 +140,24 @@ label{display:block;font-weight:600;font-size:13px;margin-top:4px}
 .check-ok{background:var(--success)}
 .check-warn{background:var(--warning)}
 .check-error{background:var(--danger)}
+.statrow{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}
+.stat{border:1px solid var(--border);border-radius:var(--radius-s);padding:10px 16px;min-width:110px}
+.statnum{font-size:22px;font-weight:700;color:var(--primary-dark);line-height:1.3}
+.statlbl{font-size:12px;color:var(--muted)}
+.dtable{width:100%;border-collapse:collapse;font-size:13px}
+.dtable th{text-align:left;color:var(--muted);font-weight:600;padding:6px 8px;
+  border-bottom:1px solid var(--border);white-space:nowrap}
+.dtable td{padding:8px;border-top:1px solid var(--border);vertical-align:top}
+.dtable a{text-decoration:none}
+.dtable a:hover{text-decoration:underline}
+.rating{display:inline-block;min-width:34px;text-align:center;font-weight:700;
+  border-radius:999px;padding:1px 8px;font-size:12px}
+.rating-good{background:var(--success-bg);color:var(--success)}
+.rating-mid{background:var(--warning-bg);color:var(--warning)}
+.rating-bad{background:var(--danger-bg);color:var(--danger)}
+.logbox{background:#0f172a;color:#e2e8f0;padding:12px;border-radius:var(--radius-s);
+  font-size:12px;overflow:auto;max-height:420px;white-space:pre-wrap;margin:0}
+.tablewrap{overflow-x:auto}
 .srcbox{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-s);
   padding:12px 14px;margin-bottom:10px;font-size:14px}
 .cand-list{display:flex;flex-direction:column;gap:6px;margin:6px 0 10px}
@@ -185,7 +204,12 @@ video{width:100%;max-height:340px;object-fit:contain;border-radius:var(--radius-
 <body>
 <header class="topbar">
   <a class="brand" href="/">OpenOctopus<small>1688 → Ozon 搬运工作台</small></a>
-  <nav>{% block nav %}{% endblock %}</nav>
+  <nav class="mainnav">
+    <a class="btn btn-ghost" href="/">商品</a>
+    <a class="btn btn-ghost" href="/dashboard">看板</a>
+    <a class="btn btn-ghost" href="/jobs">任务</a>
+  </nav>
+  <nav class="rightnav">{% block nav %}{% endblock %}</nav>
 </header>
 <main class="wrap">{% block content %}{% endblock %}</main>
 </body>

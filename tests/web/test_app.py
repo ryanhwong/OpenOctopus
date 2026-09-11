@@ -511,3 +511,19 @@ def test_review_shows_pricing_and_preflight(tmp_path):
     html = c.get("/products/1").text
     assert "保本价" in html and "建议价" in html
     assert "发布前检查" in html
+
+
+def test_dashboard_and_jobs_pages_render(tmp_path):
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "listed")
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO metrics(product_id, sku, rating, price, stock, availability, reason) "
+                 "VALUES(1, '123', 100, 75, 10, 'AVAILABLE', '')")
+    conn.commit()
+    html = c.get("/dashboard").text
+    assert "运营看板" in html and "rating-good" in html
+    jobs_html = c.get("/jobs").text
+    assert "任务中心" in jobs_html and "服务日志" in jobs_html
+    assert c.post("/dashboard/refresh", follow_redirects=False).status_code == 303
+    assert conn.execute("SELECT count(*) FROM jobs WHERE type='refresh_metrics'"
+                        ).fetchone()[0] == 1
