@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS products(
   weight_g REAL,
   ozon_product_id TEXT,
   offer_id_prefix TEXT,
+  video_url TEXT,
+  rich_content TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP);
 
@@ -114,5 +116,8 @@ def init_db(path: str) -> None:
     for col in ("length_mm", "width_mm", "height_mm", "weight_g"):
         if col not in prod_cols:
             conn.execute(f"ALTER TABLE products ADD COLUMN {col} REAL")
+    for col in ("video_url", "rich_content"):
+        if col not in prod_cols:
+            conn.execute(f"ALTER TABLE products ADD COLUMN {col} TEXT")
     conn.commit()
     conn.close()

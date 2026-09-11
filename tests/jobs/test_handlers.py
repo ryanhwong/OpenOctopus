@@ -203,3 +203,42 @@ async def test_publish_variants_multi_items(tmp_path):
     assert items[0]["attributes"][-2] == {"complex_id": 0, "id": 85,
                                           "values": [{"dictionary_value_id": 7}]}
     assert conn.execute("SELECT status FROM products WHERE id=1").fetchone()["status"] == "listed"
+
+
+async def test_content_assets_reuses_stored_values(tmp_path):
+    from openoctopus.jobs.handlers import _content_assets
+
+    ctx = make_publish_ctx(tmp_path)
+    ctx.storage = None
+    conn = get_conn(ctx.db_path)
+    conn.execute("INSERT INTO products(id, source_url, platform, status, "
+                 "video_url, rich_content) VALUES(1, 'u', '1688', 'review', "
+                 "'https://r2/v.mp4', '{\"version\": 0.3}')")
+    conn.commit()
+    video_url, rich = _content_assets(ctx, conn, 1, title_ru="T", desc_ru="D",
+                                      gallery_urls=["https://r2/a.png", "https://r2/b.png"],
+                                      title_zh="")
+    assert video_url == "https://r2/v.mp4"
+    assert rich == '{"version": 0.3}'
+
+
+async def test_regenerate_rich_writes_json(tmp_path):
+    from openoctopus.jobs.handlers import handle_regenerate_rich
+
+    ctx = make_publish_ctx(tmp_path)
+    ctx.storage = None
+    conn = get_conn(ctx.db_path)
+    conn.execute("INSERT INTO products(id, source_url, platform, status, "
+                 "video_url) VALUES(1, 'u', '1688', 'review', 'https://r2/v.mp4')")
+    conn.execute("INSERT INTO translations(product_id, field, zh, ru) "
+                 "VALUES(1, 'title', '带', 'Ремешок')")
+    conn.execute("INSERT INTO translations(product_id, field, zh, ru) "
+                 "VALUES(1, 'description', '描述', 'Описание товара')")
+    for i in (1, 2, 3):
+        conn.execute("INSERT INTO images(product_id, kind, source_url, translated_url, status, "
+                     "selected) VALUES(1, 'main', ?, ?, 'uploaded', 1)",
+                     (f"https://img/{i}.jpg", f"https://r2/{i}.png"))
+    conn.commit()
+    await handle_regenerate_rich(ctx, {"product_id": 1})
+    saved = conn.execute("SELECT rich_content FROM products WHERE id=1").fetchone()[0]
+    assert "raShowcase" in saved

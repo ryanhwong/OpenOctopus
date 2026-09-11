@@ -81,7 +81,12 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
     def kanban(request: Request):
         conn = get_conn(ctx.db_path)
         groups = [(label, conn.execute(
-            "SELECT id, source_url FROM products WHERE status=? ORDER BY updated_at DESC",
+            "SELECT p.id, p.source_url, p.status, p.price_rub, "
+            "(SELECT t.ru FROM translations t WHERE t.product_id=p.id AND t.field='title' "
+            " LIMIT 1) AS title_ru, "
+            "(SELECT i.translated_url FROM images i WHERE i.product_id=p.id AND i.kind='main' "
+            " AND i.translated_url IS NOT NULL ORDER BY i.id LIMIT 1) AS thumb "
+            "FROM products p WHERE p.status=? ORDER BY p.updated_at DESC",
             (st,)).fetchall()) for st, label in STATUS_GROUPS]
         job_by_product = {}
         for j in conn.execute(
@@ -93,9 +98,9 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                 continue
             if pid is not None and pid not in job_by_product:
                 job_by_product[pid] = dict(j)
-        return TEMPLATES.TemplateResponse(request, "kanban.html", {"groups": groups,
-                                                                     "login": _login_snapshot(),
-                                                                     "jobs": job_by_product})
+        return TEMPLATES.TemplateResponse(request, "kanban.html", {
+            "groups": groups, "login": _login_snapshot(), "jobs": job_by_product,
+            "currency": (ctx.settings.price_currency or "RUB").upper()})
 
     @app.get("/login/status")
     def login_status():
@@ -186,9 +191,16 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                     cny = min((g.price_cny for g in grp if g.price_cny), default=0) or rraw.price_cny
                     variants.append({"zh": opt, "ru": omap.get(opt, {}).get("option_ru", ""),
                                      "price_rub": round(cny * rate), "combos": len(grp)})
+        hero = next((r["translated_url"] for r in images
+                     if r["kind"] == "main" and r["translated_url"]), None)
+        content_jobs = conn.execute(
+            "SELECT count(*) FROM jobs WHERE status IN ('queued','running') "
+            "AND type IN ('regenerate_video','regenerate_rich') "
+            "AND payload_json LIKE ?", (f'%"product_id": {pid}%',)).fetchone()[0]
         return TEMPLATES.TemplateResponse(request, "review.html",
-                                          {"p": p, "t": t, "images": images,
+                                          {"p": p, "t": t, "images": images, "hero": hero,
                                            "mapping": mapping, "cats": cats, "variants": variants,
+                                           "content_jobs": content_jobs,
                                            "currency": (ctx.settings.price_currency or "RUB").upper()})
 
     @app.post("/products/{pid}/edit")
@@ -198,7 +210,7 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                    ozon_category_id: str = Form(...),
                    attributes_json: str = Form("{}"), length_mm: str = Form(""),
                    width_mm: str = Form(""), height_mm: str = Form(""),
-                   weight_g: str = Form("")):
+                   weight_g: str = Form(""), rich_content: str = Form("")):
         try:
             attrs = _json.loads(attributes_json)
         except _json.JSONDecodeError:
@@ -233,6 +245,9 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         except ValueError:
             stock_val = 0
         conn.execute("UPDATE products SET stock=? WHERE id=?", (stock_val, pid))
+        if rich_content.strip():
+            conn.execute("UPDATE products SET rich_content=? WHERE id=?",
+                         (rich_content.strip(), pid))
         dims = {}
         for field, key in (("length_mm", length_mm), ("width_mm", width_mm),
                            ("height_mm", height_mm), ("weight_g", weight_g)):
@@ -295,6 +310,24 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
             raise HTTPException(status_code=404, detail="Image not found")
         enqueue(conn, "regenerate_image", {"product_id": pid, "image_id": imgid,
                                             "prompt_override": prompt_override.strip()})
+        return RedirectResponse(f"/products/{pid}", status_code=303)
+
+    @app.post("/products/{pid}/content/video/regenerate")
+    def regenerate_video(pid: int):
+        conn = get_conn(ctx.db_path)
+        if conn.execute("SELECT 1 FROM products WHERE id=?", (pid,)).fetchone() is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+        enqueue(conn, "regenerate_video", {"product_id": pid})
+        conn.commit()
+        return RedirectResponse(f"/products/{pid}", status_code=303)
+
+    @app.post("/products/{pid}/content/rich/regenerate")
+    def regenerate_rich(pid: int):
+        conn = get_conn(ctx.db_path)
+        if conn.execute("SELECT 1 FROM products WHERE id=?", (pid,)).fetchone() is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+        enqueue(conn, "regenerate_rich", {"product_id": pid})
+        conn.commit()
         return RedirectResponse(f"/products/{pid}", status_code=303)
 
     @app.post("/products/publish-batch")

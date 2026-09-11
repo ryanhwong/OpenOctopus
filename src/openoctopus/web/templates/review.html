@@ -3,11 +3,17 @@
 {% block nav %}<a class="btn btn-ghost" href="/">← 返回看板</a>{% endblock %}
 {% block content %}
 <div class="card" style="margin-bottom:20px">
-  <h1 style="margin-bottom:6px">商品 #{{ p['id'] }}
-    <span class="pill pill-{{ p['status'] }}">{{ p['status'] }}</span>
-  </h1>
-  <p class="muted" style="margin:0">来源：<a class="urllink" href="{{ p['source_url'] }}">{{ p['source_url'] }}</a>
-    {% if p.get('price_rub') %} ｜ 上架价：<strong>{{ p['price_rub'] }} {{ currency }}</strong>{% endif %}</p>
+  <div class="hero">
+    {% if hero %}<img src="{{ hero }}" alt="主图缩略图" loading="lazy">{% endif %}
+    <div style="min-width:0">
+      <h1 style="margin-bottom:4px">商品 #{{ p['id'] }}
+        <span class="pill pill-{{ p['status'] }}">{{ p['status'] }}</span>
+      </h1>
+      <p class="muted" style="margin:0">来源：<a class="urllink" href="{{ p['source_url'] }}">{{ p['source_url'] }}</a>
+        {% if p.get('price_rub') %} ｜ 上架价：<strong>{{ p['price_rub'] }} {{ currency }}</strong>{% endif %}</p>
+      <p style="margin:6px 0 0;font-weight:600">{{ t.get('title', {}).get('ru', '') or '（未翻译标题）' }}</p>
+    </div>
+  </div>
 </div>
 
 <div class="grid2">
@@ -55,6 +61,29 @@
   </section>
 
   <div>
+    <section class="card" aria-label="视频与详情页" style="margin-bottom:20px">
+      <h2 style="margin-top:0">视频与详情页（Ozon 富内容）</h2>
+      {% if content_jobs %}<p class="muted" style="color:var(--warning);margin:0 0 6px">生成中，请稍候…（本页自动刷新）</p>{% endif %}
+      <h3 style="margin-top:8px">商品视频</h3>
+      {% if p.get('video_url') %}
+      <video controls preload="metadata" src="{{ p['video_url'] }}" aria-label="商品视频"></video>
+      <p class="muted" style="margin:6px 0 0">幻灯片视频（8-30 秒），上架时随卡片作为 Ozon 视频/视频封面</p>
+      {% else %}
+      <p class="muted">未生成。上架前生成，可提升内容评级（视频项 +40 分）。</p>
+      {% endif %}
+      <form method="post" action="/products/{{ p['id'] }}/content/video/regenerate" style="margin-top:8px">
+        <button class="btn btn-ghost" type="submit">{% if p.get('video_url') %}重新生成视频{% else %}生成视频{% endif %}</button>
+      </form>
+
+      <h3>详情页 / Rich-контент JSON</h3>
+      <p class="muted">图文详情，上架后展示在描述区（可替代纯文字描述）。可手动编辑，「保存草稿」后生效。</p>
+      <textarea name="rich_content" form="edit-form" rows="6" spellcheck="false"
+                aria-label="Rich-контент JSON">{{ p.get('rich_content') or '' }}</textarea>
+      <form method="post" action="/products/{{ p['id'] }}/content/rich/regenerate" style="margin-top:6px">
+        <button class="btn btn-ghost" type="submit">重新生成详情页</button>
+      </form>
+    </section>
+
     <section class="card" aria-label="中文原文对照" style="margin-bottom:20px">
       <h2 style="margin-top:0">中文原文对照</h2>
       <div class="srcbox"><strong>标题：</strong>{{ t.get('title', {}).get('zh', '') }}</div>
@@ -136,10 +165,10 @@
 @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 
-{% if p['status'] == 'generating' %}
+{% if p['status'] == 'generating' or content_jobs %}
 <script>
-// 生成中：每 5 秒自动刷新，避免手动刷新
-setTimeout(() => location.reload(), 5000);
+// 生成中：每 4 秒自动刷新，避免手动刷新
+setTimeout(() => location.reload(), 4000);
 </script>
 {% endif %}
 {% endblock %}

@@ -251,3 +251,56 @@ def test_publish_batch_enqueues_selected(tmp_path):
     n = conn.execute("SELECT count(*) FROM jobs WHERE type='publish'").fetchone()[0]
     assert n == 2
     assert conn.execute("SELECT status FROM products WHERE id=1").fetchone()["status"] == "publishing"
+
+
+def test_kanban_shows_title_and_thumb(tmp_path):
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "review")
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO translations(product_id, field, zh, ru) "
+                 "VALUES(1, 'title', '手表带', 'Ремешок для часов')")
+    conn.execute("INSERT INTO images(product_id, kind, source_url, translated_url, status) "
+                 "VALUES(1, 'main', 'https://img/a.jpg', 'https://r2/a.png', 'uploaded')")
+    conn.commit()
+    html = c.get("/").text
+    assert "Ремешок для часов" in html
+    assert "https://r2/a.png" in html
+
+
+def test_review_shows_video_and_rich_content(tmp_path):
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "review")
+    conn = get_conn(db_path)
+    conn.execute("UPDATE products SET video_url='https://r2/v.mp4', "
+                 "rich_content='{\"version\": 0.3}' WHERE id=1")
+    conn.commit()
+    html = c.get("/products/1").text
+    assert "https://r2/v.mp4" in html
+    assert "rich_content" in html
+
+
+def test_edit_saves_rich_content(tmp_path):
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "review")
+    r = c.post("/products/1/edit", data={
+        "title_ru": "T", "description_ru": "D", "ozon_category_id": "42",
+        "attributes_json": "[]", "rich_content": '{"version": 0.3, "content": []}',
+    }, follow_redirects=False)
+    assert r.status_code == 303
+    conn = get_conn(db_path)
+    saved = conn.execute("SELECT rich_content FROM products WHERE id=1").fetchone()[0]
+    assert saved == '{"version": 0.3, "content": []}'
+
+
+def test_content_regenerate_routes_enqueue_jobs(tmp_path):
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "review")
+    assert c.post("/products/1/content/video/regenerate",
+                  follow_redirects=False).status_code == 303
+    assert c.post("/products/1/content/rich/regenerate",
+                  follow_redirects=False).status_code == 303
+    conn = get_conn(db_path)
+    types = {r["type"] for r in conn.execute("SELECT type FROM jobs")}
+    assert {"regenerate_video", "regenerate_rich"} <= types
+    assert c.post("/products/9/content/video/regenerate",
+                  follow_redirects=False).status_code == 404

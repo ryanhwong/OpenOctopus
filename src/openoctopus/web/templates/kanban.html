@@ -56,12 +56,21 @@
     <div class="col-head">{{ label }} <span class="count">{{ items|length }}</span></div>
     {% for it in items %}
       <div class="pcard">
-        <input type="checkbox" name="pid" value="{{ it['id'] }}" form="batchform" title="选中批量同步"
-               style="width:auto;margin:0 6px 0 0">
-        <a href="/products/{{ it['id'] }}" title="{{ it['source_url'] }}">
-          <span class="pid">#{{ it['id'] }}</span><br>
-          <span class="url">{{ it['source_url'][:48] }}</span>
-        </a>
+        <div class="pcard-row">
+          <input type="checkbox" name="pid" value="{{ it['id'] }}" form="batchform"
+                 title="选中批量同步">
+          <a class="pcard-link" href="/products/{{ it['id'] }}" title="{{ it['source_url'] }}">
+            <span class="thumb">
+              {% if it['thumb'] %}<img src="{{ it['thumb'] }}" alt="" loading="lazy">
+              {% else %}#{{ it['id'] }}{% endif %}
+            </span>
+            <span class="pinfo">
+              <span class="ptitle">{{ it['title_ru'] or it['source_url'] }}</span>
+              <span class="pmeta">#{{ it['id'] }}{% if it['price_rub'] %} · {{ it['price_rub'] }} {{ currency }}
+                {% endif %}{% if it['status'] != 'review' %} · {{ it['status'] }}{% endif %}</span>
+            </span>
+          </a>
+        </div>
       </div>
       {% set job = jobs.get(it['id']) %}
       {% if job and job['status'] == 'failed' %}

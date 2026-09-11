@@ -118,6 +118,12 @@ async def handle_generate(ctx, payload: dict) -> None:
         conn.execute("UPDATE products SET price_rub=? WHERE id=?", (default_price, pid))
     if raw.skus:
         await _resolve_sku_options(ctx, conn, pid, raw, cat_key, schema_items)
+    # 视频 + 富内容（人审页可预览/编辑；发布时复用）
+    try:
+        _content_assets(ctx, conn, pid, title_ru=tc.title_ru, desc_ru=tc.description_ru,
+                        gallery_urls=_gallery_urls(conn, pid), title_zh=raw.title_zh)
+    except Exception:  # noqa: BLE001, S110
+        pass
     conn.execute("UPDATE products SET status='review', updated_at=CURRENT_TIMESTAMP WHERE id=?", (pid,))
     conn.commit()
 
@@ -156,33 +162,68 @@ async def _resolve_sku_options(ctx, conn, pid: int, raw, cat_key: str,
             (pid, o, ru, attr_id, matches.get(ru)))
 
 
-def _enrich_items(ctx, items: list[dict], *, pid: int, title_ru: str, desc_ru: str,
-                  gallery_urls: list[str], dims_arg: dict | None, title_zh: str) -> None:
-    """补充属性：注释、材质/尺寸、视频链接、Rich-контент（就地修改 items）。"""
-    try:
-        from openoctopus.listing.enrich import (
-            build_extra_attributes,
-            build_rich_content,
-            safe_hashtags,
-        )
+def _material(title_zh: str) -> str:
+    return ("textile" if any(w in (title_zh or "")
+                             for w in ("尼龙", "尼龍", "编织", "編織")) else "silicone")
 
-        material = ("textile" if any(w in (title_zh or "")
-                                     for w in ("尼龙", "尼龍", "编织", "編織"))
-                    else "silicone")
-        hint = "Нейлон" if material == "textile" else "Силикон"
-        rich = build_rich_content(title_ru, desc_ru, gallery_urls, material_hint=hint)
-        video_url = ""
-        if ctx.storage and gallery_urls:
-            key = f"products/{pid}/video.mp4"
-            if callable(getattr(ctx.storage, "exists", None)) and ctx.storage.exists(key):
+
+def _gallery_urls(conn, pid: int) -> list[str]:
+    return list(dict.fromkeys(
+        r["translated_url"] or r["source_url"] for r in conn.execute(
+            "SELECT translated_url, source_url FROM images WHERE product_id=? "
+            "AND kind='main' AND selected=1 AND status='uploaded' ORDER BY id", (pid,))))
+
+
+def _content_assets(ctx, conn, pid: int, *, title_ru: str, desc_ru: str,
+                    gallery_urls: list[str], title_zh: str,
+                    force_video: bool = False, force_rich: bool = False) -> tuple[str, str]:
+    """返回 (video_url, rich_content)。优先复用已存库版本，缺失则生成并落库。"""
+    from openoctopus.listing.enrich import build_rich_content
+
+    row = conn.execute("SELECT video_url, rich_content FROM products WHERE id=?",
+                       (pid,)).fetchone()
+    video_url = "" if force_video else ((row["video_url"] or "") if row else "")
+    rich = "" if force_rich else ((row["rich_content"] or "") if row else "")
+    hint = "Нейлон" if _material(title_zh) == "textile" else "Силикон"
+    if not rich and gallery_urls:
+        try:
+            rich = build_rich_content(title_ru, desc_ru, gallery_urls, material_hint=hint)
+        except Exception:  # noqa: BLE001
+            rich = ""
+    if not video_url and ctx.storage and gallery_urls:
+        key = f"products/{pid}/video.mp4"
+        try:
+            if (not force_video and callable(getattr(ctx.storage, "exists", None))
+                    and ctx.storage.exists(key)):
                 video_url = f"{ctx.storage.public_base}/{key}"
             else:
                 from openoctopus.image.video import make_slideshow
 
-                data = make_slideshow(
-                    gallery_urls, prefer_host=getattr(ctx.storage, "public_base", ""))
+                data = make_slideshow(gallery_urls,
+                                      prefer_host=getattr(ctx.storage, "public_base", ""))
                 if data:
                     video_url = ctx.storage.put(key, data, mime="video/mp4")
+        except Exception:  # noqa: BLE001
+            video_url = ""
+    if rich or video_url:
+        conn.execute("UPDATE products SET video_url=?, rich_content=? WHERE id=?",
+                     (video_url, rich, pid))
+        conn.commit()
+    return video_url, rich
+
+
+def _enrich_items(ctx, items: list[dict], *, pid: int, title_ru: str, desc_ru: str,
+                  gallery_urls: list[str], dims_arg: dict | None, title_zh: str) -> None:
+    """补充属性：注释、材质/尺寸、视频链接、Rich-контент（就地修改 items）。"""
+    try:
+        from openoctopus.db import get_conn
+        from openoctopus.listing.enrich import build_extra_attributes, safe_hashtags
+
+        conn = get_conn(ctx.db_path)
+        video_url, rich = _content_assets(
+            ctx, conn, pid, title_ru=title_ru, desc_ru=desc_ru,
+            gallery_urls=gallery_urls, title_zh=title_zh)
+        material = _material(title_zh)
         tags = safe_hashtags("ремешок", "умныечасы", "аксессуар",
                              "нейлон" if material == "textile" else "силикон")
         dims = dims_arg or {}
@@ -405,5 +446,44 @@ async def handle_regenerate_image(ctx, payload: dict) -> None:
     conn.commit()
 
 
+def _regen_context(conn, pid: int) -> dict:
+    t = {r["field"]: r["ru"] for r in conn.execute(
+        "SELECT field, ru FROM translations WHERE product_id=?", (pid,))}
+    title_zh = ""
+    snap = conn.execute("SELECT raw_json FROM source_snapshots WHERE product_id=? "
+                        "ORDER BY id DESC", (pid,)).fetchone()
+    if snap:
+        try:
+            title_zh = json.loads(snap["raw_json"]).get("title_zh", "")
+        except Exception:  # noqa: BLE001
+            title_zh = ""
+    return {"title_ru": t.get("title", ""), "desc_ru": t.get("description", ""),
+            "title_zh": title_zh}
+
+
+async def handle_regenerate_video(ctx, payload: dict) -> None:
+    from openoctopus.db import get_conn
+
+    conn = get_conn(ctx.db_path)
+    pid = payload["product_id"]
+    info = _regen_context(conn, pid)
+    _content_assets(ctx, conn, pid, title_ru=info["title_ru"], desc_ru=info["desc_ru"],
+                    gallery_urls=_gallery_urls(conn, pid), title_zh=info["title_zh"],
+                    force_video=True)
+
+
+async def handle_regenerate_rich(ctx, payload: dict) -> None:
+    from openoctopus.db import get_conn
+
+    conn = get_conn(ctx.db_path)
+    pid = payload["product_id"]
+    info = _regen_context(conn, pid)
+    _content_assets(ctx, conn, pid, title_ru=info["title_ru"], desc_ru=info["desc_ru"],
+                    gallery_urls=_gallery_urls(conn, pid), title_zh=info["title_zh"],
+                    force_rich=True)
+
+
 HANDLERS = {"collect": handle_collect, "generate": handle_generate, "publish": handle_publish,
-            "regenerate_image": handle_regenerate_image}
+            "regenerate_image": handle_regenerate_image,
+            "regenerate_video": handle_regenerate_video,
+            "regenerate_rich": handle_regenerate_rich}
