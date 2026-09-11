@@ -168,44 +168,58 @@
       </table>
     </section>
     {% endif %}
-    <section class="card" aria-label="图片前后对比">
-      <h2 style="margin-top:0">图片前后对比（{{ images|length }} 张）</h2>
-      {% for img in images %}
-      <div class="imgpair">
+  </div>
+</div>
+
+<section class="card" aria-label="图片前后对比" style="margin-top:20px">
+  <h2 style="margin-top:0;margin-bottom:4px">图片前后对比（{{ images|length }} 张）</h2>
+  <p class="muted" style="margin:0 0 4px">勾选「用于上架」的图片会随商品发布；可展开「自定义重生成」指定修改要求。</p>
+  {% set kind_labels = {"main": "主图", "detail": "详情图", "swatch": "色卡"} %}
+  <div class="imggrid">
+    {% for img in images %}
+    <div class="imgcard">
+      <div class="imginfo">
+        <span class="pill pill-new">{{ kind_labels.get(img['kind'], img['kind']) }}</span>
+        <span class="muted">#{{ img['id'] }} · {{ img['status'] }}</span>
+      </div>
+      <div class="pair">
         <figure>
-          <figcaption>源图 · {{ img['kind'] }}</figcaption>
           {% if img['source_url'] %}
-          <img src="{{ img['source_url'] }}" alt="源图 #{{ img['id'] }}" loading="lazy">
+          <img src="/media/proxy?u={{ img['source_url']|urlencode }}" alt="源图 #{{ img['id'] }}" loading="lazy">
           {% else %}<p class="muted">无</p>{% endif %}
+          <figcaption>源图</figcaption>
         </figure>
         <figure>
-          <figcaption>译文图 · {{ img['status'] }}</figcaption>
           {% if img['status'] == 'pending' %}
-          <div class="imgloading"><span class="spinner"></span> 生成中…</div>
+          <div class="imgloading"><span class="spinner"></span></div>
           {% elif img['translated_url'] %}
           <img src="{{ img['translated_url'] }}" alt="译文图 #{{ img['id'] }}" loading="lazy">
           {% elif img['status'] == 'failed' %}
-          <div class="imgloading err">生成失败，可点下方重试</div>
-          {% else %}<p class="muted">尚未生成</p>{% endif %}
+          <div class="imgloading err">生成失败</div>
+          {% else %}<p class="muted">未生成</p>{% endif %}
+          <figcaption>译文图</figcaption>
         </figure>
       </div>
-      <label style="font-weight:400;font-size:13px">
+      <label style="font-weight:400;font-size:13px;display:flex;gap:6px;align-items:center;margin:6px 0 0">
         <input type="checkbox" name="sel_{{ img['id'] }}" value="1" form="edit-form"
-               {% if img['selected'] %}checked{% endif %} style="width:auto">
+               {% if img['selected'] %}checked{% endif %} style="width:auto;margin:0">
         用于上架
       </label>
-      <form method="post" action="/products/{{ p['id'] }}/images/{{ img['id'] }}/regenerate"
-            style="margin-top:6px;display:flex;gap:6px;align-items:center">
-        <input type="text" name="prompt_override" style="margin:0;flex:1;font-size:12px"
-               placeholder="留空=自动读图翻译；可写自定义指令，如：只去掉左上角logo，其他不动">
-        <button class="btn btn-ghost" type="submit"
-                style="min-height:32px;padding:2px 12px;white-space:nowrap">单张重生成</button>
-      </form>
-      {% endfor %}
-      {% if not images %}<p class="muted">暂无图片</p>{% endif %}
-    </section>
+      <details>
+        <summary>自定义重生成</summary>
+        <form method="post" action="/products/{{ p['id'] }}/images/{{ img['id'] }}/regenerate">
+          <div class="regen-row">
+            <input type="text" name="prompt_override" aria-label="重生成指令 #{{ img['id'] }}"
+                   placeholder="留空=自动翻译；如：只去左上角logo">
+            <button class="btn btn-ghost" type="submit">重生成</button>
+          </div>
+        </form>
+      </details>
+    </div>
+    {% endfor %}
   </div>
-</div>
+  {% if not images %}<p class="muted">暂无图片</p>{% endif %}
+</section>
 
 <div class="actionbar">
   <form method="post" action="/products/{{ p['id'] }}/approve">

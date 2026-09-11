@@ -171,6 +171,30 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         pid = persist_raw_product(conn, rp)
         return JSONResponse({"ok": True, "product_id": pid})
 
+    @app.get("/media/proxy")
+    async def media_proxy(u: str = ""):
+        """代理外部图片（1688 CDN 有防盗链，浏览器直连会 403）。"""
+        from urllib.parse import urlparse
+
+        p = urlparse(u)
+        if p.scheme not in ("http", "https") or not p.netloc:
+            return Response("bad url", status_code=400)
+        import httpx
+
+        headers = {
+            "Referer": "https://detail.1688.com/",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                          "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+                r = await client.get(u, headers=headers)
+                r.raise_for_status()
+        except Exception:  # noqa: BLE001
+            return Response("fetch failed", status_code=502)
+        return Response(r.content, media_type=r.headers.get("content-type", "image/jpeg"),
+                        headers={"Cache-Control": "public, max-age=86400"})
+
     @app.get("/products/{pid}", response_class=HTMLResponse)
     def review(request: Request, pid: int):
         conn = get_conn(ctx.db_path)

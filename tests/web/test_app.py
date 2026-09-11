@@ -405,3 +405,21 @@ def test_edit_uses_title_pick_when_title_empty(tmp_path):
     saved = conn.execute("SELECT ru FROM translations WHERE product_id=1 AND field='title'"
                          ).fetchone()["ru"]
     assert saved == "Выбранный заголовок для часов"
+
+
+def test_media_proxy_rejects_bad_url(tmp_path):
+    c, _ = make_client(tmp_path)
+    assert c.get("/media/proxy").status_code == 400
+    assert c.get("/media/proxy?u=file:///etc/passwd").status_code == 400
+    assert c.get("/media/proxy?u=not-a-url").status_code == 400
+
+
+def test_review_uses_media_proxy_for_source_images(tmp_path):
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "review")
+    conn = get_conn(db_path)
+    conn.execute("INSERT INTO images(product_id, kind, source_url, status) "
+                 "VALUES(1, 'main', 'https://cbu01.alicdn.com/img/a.jpg', 'pending')")
+    conn.commit()
+    html = c.get("/products/1").text
+    assert "/media/proxy?u=https%3A//cbu01.alicdn.com/img/a.jpg" in html
