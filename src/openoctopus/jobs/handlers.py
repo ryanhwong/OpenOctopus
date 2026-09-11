@@ -75,7 +75,7 @@ async def handle_generate(ctx, payload: dict) -> None:
     conn.commit()  # 先落盘文案，下面逐张提交，单图失败不挡整单
 
     # 标题工程：生成结构化候选，默认采用第一个（人审页可切换候选）
-    if getattr(ctx.settings, "ozon_scrape_proxy", ""):
+    if getattr(ctx.settings, "ozon_scrape_enabled", False):
         try:
             await _fetch_keywords(ctx, conn, pid, query_ru=tc.title_ru)
         except Exception:  # noqa: BLE001, S110

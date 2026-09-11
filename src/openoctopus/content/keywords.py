@@ -21,8 +21,12 @@ KEYWORD_PROMPT = (
 
 
 async def fetch_ozon_titles(query: str, proxy: str = "", limit: int = 10,
-                            timeout_ms: int = 45000) -> list[str]:
-    """用 playwright 抓 Ozon 搜索结果标题；失败返回 []。"""
+                            timeout_ms: int = 60000) -> list[str]:
+    """抓 Ozon 搜索结果标题。
+
+    用真实 Chrome + 有头模式绕过 antibot；不读环境代理（走真直连）。
+    失败返回 []，不影响主流程。
+    """
     try:
         from playwright.async_api import async_playwright
     except ImportError:
@@ -30,21 +34,29 @@ async def fetch_ozon_titles(query: str, proxy: str = "", limit: int = 10,
     titles: list[str] = []
     try:
         async with async_playwright() as p:
-            kwargs: dict = {"headless": True}
+            launch_kwargs: dict = {}
             if proxy:
-                kwargs["proxy"] = {"server": proxy}
-            browser = await p.chromium.launch(**kwargs)
-            page = await browser.new_page(
-                locale="ru-RU",
+                launch_kwargs["proxy"] = {"server": proxy}
+            try:
+                browser = await p.chromium.launch(
+                    channel="chrome", headless=False,
+                    args=["--disable-blink-features=AutomationControlled"],
+                    **launch_kwargs)
+            except Exception:  # noqa: BLE001
+                browser = await p.chromium.launch(headless=True, **launch_kwargs)
+            ctx = await browser.new_context(
+                locale="ru-RU", viewport={"width": 1280, "height": 900},
                 user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36")
+            page = await ctx.new_page()
             await page.goto(SEARCH_URL.format(q=quote(query)), timeout=timeout_ms,
                             wait_until="domcontentloaded")
-            await page.wait_for_timeout(5000)
+            await page.wait_for_timeout(6000)
             for el in await page.query_selector_all('a[href*="/product/"]'):
-                t = (await el.inner_text()).strip().replace("\n", " ")
-                if len(t) > 15 and t not in titles:
-                    titles.append(t[:150])
+                t = " ".join((await el.inner_text()).split())
+                if len(t) < 25 or t in titles:
+                    continue
+                titles.append(t[:150])
                 if len(titles) >= limit:
                     break
             await browser.close()
