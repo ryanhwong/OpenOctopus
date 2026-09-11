@@ -8,6 +8,11 @@ class Settings(BaseSettings):
     live_mode: bool = False
     price_cny_to_rub: float = 12.0
     price_currency: str = "RUB"
+    # 利润估算：Ozon 佣金%、头程+跨境物流单件成本(CNY)、目标利润率%
+    ozon_commission_pct: float = 20.0
+    shipping_cny: float = 8.0
+    target_margin_pct: float = 30.0
+    log_path: str = "/tmp/oo-serve.log"
 
     ozon_client_id: str = ""
     ozon_api_key: str = ""

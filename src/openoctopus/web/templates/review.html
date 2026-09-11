@@ -77,6 +77,18 @@
       <label for="f-price">价格 ({{ currency }})</label>
       <input id="f-price" name="price_rub" type="text" inputmode="decimal"
              value="{{ p.get('price_rub') or '' }}" placeholder="留空则用汇率自动换算价">
+      <div class="pricebox">
+        <div>成本 <strong>{{ advice.cost_cny }}</strong> CNY（含物流 {{ (advice.total_cost_cny - advice.cost_cny)|round(1) }}）
+          · 汇率 <strong>{{ '%.2f'|format(rate) }}</strong> · 佣金 {{ advice.commission_pct }}%</div>
+        <div>保本价 <strong>{{ advice.break_even_cny }}</strong> · 建议价 <strong>{{ advice.suggested_cny }}</strong>
+          （目标利润率 {{ advice.target_margin_pct }}%）
+          <button type="button" class="btn btn-ghost"
+                  onclick="document.getElementById('f-price').value={{ advice.suggested_cny }}">填入建议价</button></div>
+        {% if p.get('price_rub') %}
+        <div>当前利润率 <strong class="{% if cur_margin < advice.target_margin_pct %}varwarn{% else %}varok{% endif %}">{{ cur_margin }}%</strong>
+          {% if p.get('last_price_sent') %}· 上次发布价 {{ p['last_price_sent'] }}{% endif %}</div>
+        {% endif %}
+      </div>
 
       <label for="f-stock">库存 (每 SKU 同量，0=不改)</label>
       <input id="f-stock" name="stock" type="number" min="0" step="1"
@@ -240,6 +252,19 @@
     {% endfor %}
   </div>
   {% if not images %}<p class="muted">暂无图片</p>{% endif %}
+</section>
+
+<section class="card" aria-label="发布前检查" style="margin-top:20px">
+  <h2 style="margin-top:0;margin-bottom:8px">发布前检查</h2>
+  <div class="checklist">
+    {% for c in checks %}
+    <div class="checkitem">
+      <span class="checkdot check-{{ c.level }}"
+            aria-hidden="true">{% if c.level == 'ok' %}✓{% elif c.level == 'warn' %}!{% else %}×{% endif %}</span>
+      <span>{{ c.text }}</span>
+    </div>
+    {% endfor %}
+  </div>
 </section>
 
 <div class="actionbar">

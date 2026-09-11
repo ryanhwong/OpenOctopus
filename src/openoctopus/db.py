@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS products(
   video_url TEXT,
   rich_content TEXT,
   keywords TEXT,
+  last_price_sent REAL,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP);
 
@@ -94,6 +95,11 @@ CREATE TABLE IF NOT EXISTS title_candidates(
   style TEXT NOT NULL DEFAULT '',
   ru TEXT NOT NULL DEFAULT '',
   created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+
+CREATE TABLE IF NOT EXISTS settings_kv(
+  key TEXT PRIMARY KEY,
+  value TEXT DEFAULT '',
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP);
 """
 
 
@@ -129,5 +135,7 @@ def init_db(path: str) -> None:
             conn.execute(f"ALTER TABLE products ADD COLUMN {col} TEXT")
     if "keywords" not in prod_cols:
         conn.execute("ALTER TABLE products ADD COLUMN keywords TEXT")
+    if "last_price_sent" not in prod_cols:
+        conn.execute("ALTER TABLE products ADD COLUMN last_price_sent REAL")
     conn.commit()
     conn.close()

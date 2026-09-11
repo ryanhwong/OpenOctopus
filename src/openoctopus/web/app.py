@@ -209,13 +209,22 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         mapping = conn.execute("SELECT * FROM category_mappings WHERE product_id=?", (pid,)).fetchone()
         cats = conn.execute("SELECT id, title FROM ozon_categories WHERE id LIKE '%:%' "
                               "ORDER BY title LIMIT 500").fetchall()
+        from openoctopus.content.titles import check_title, style_label
+        from openoctopus.listing.enrich import parse_rich_content
+        from openoctopus.listing.preflight import preflight
+        from openoctopus.listing.pricing import margin_pct, price_advice
+        from openoctopus.rates import get_rate
+
         variants = []
+        cost_cny = 0.0
+        rate = ctx.settings.price_cny_to_rub
         snap = conn.execute("SELECT raw_json FROM source_snapshots WHERE product_id=? "
                             "ORDER BY id DESC", (pid,)).fetchone()
         if snap:
             from openoctopus.models import RawProduct, variant_dim_index
 
             rraw = RawProduct(**_json.loads(snap["raw_json"]))
+            cost_cny = float(rraw.price_cny or 0)
             if not t.get("title", {}).get("zh"):
                 t.setdefault("title", {})["zh"] = rraw.title_zh
             if not t.get("description", {}).get("zh"):
@@ -232,7 +241,7 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                             for r in conn.execute(
                                 "SELECT label, translated_url, source_url FROM images "
                                 "WHERE product_id=? AND kind='swatch'", (pid,))}
-                rate = ctx.settings.price_cny_to_rub
+                rate = get_rate(conn, ctx.settings.price_cny_to_rub)
                 for opt, grp in sorted(groups.items()):
                     cny = min((g.price_cny for g in grp if g.price_cny), default=0) or rraw.price_cny
                     o = omap.get(opt, {})
@@ -242,8 +251,6 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                                      "swatch": swatches.get(opt, "")})
         hero = next((r["translated_url"] for r in images
                      if r["kind"] == "main" and r["translated_url"]), None)
-        from openoctopus.content.titles import check_title, style_label
-        from openoctopus.listing.enrich import parse_rich_content
 
         rich_blocks = parse_rich_content(p.get("rich_content") or "")
         title_candidates = conn.execute(
@@ -256,6 +263,20 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                 keywords = _json.loads(p["keywords"])
             except _json.JSONDecodeError:
                 keywords = []
+        advice = price_advice(cost_cny, commission_pct=ctx.settings.ozon_commission_pct,
+                              shipping_cny=ctx.settings.shipping_cny,
+                              target_margin_pct=ctx.settings.target_margin_pct, rate=rate)
+        cur_price = float(p.get("price_rub") or 0)
+        cur_margin = margin_pct(cur_price, advice)
+        dims_count = sum(1 for k in ("length_mm", "width_mm", "height_mm", "weight_g")
+                         if p.get(k))
+        rus = [v["ru"] for v in variants if v["ru"]]
+        checks = preflight(mapping=mapping, images=images, title_warnings=title_warnings,
+                           price=cur_price, advice=advice,
+                           last_price_sent=p.get("last_price_sent"),
+                           stock=p.get("stock"), dims_count=dims_count,
+                           unmatched_colors=sum(1 for v in variants if not v["matched"]),
+                           dup_colors=len(rus) != len(set(rus)))
         content_jobs = conn.execute(
             "SELECT count(*) FROM jobs WHERE status IN ('queued','running') "
             "AND type IN ('regenerate_video','regenerate_rich','regenerate_titles','fetch_keywords') "
@@ -267,6 +288,8 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                                            "title_candidates": title_candidates,
                                            "title_warnings": title_warnings,
                                            "keywords": keywords,
+                                           "advice": advice, "cur_margin": cur_margin,
+                                           "checks": checks, "rate": rate,
                                            "style_label": style_label,
                                            "r2_base": ctx.settings.r2_public_base_url or "",
                                            "content_jobs": content_jobs,

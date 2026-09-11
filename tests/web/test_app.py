@@ -448,6 +448,7 @@ def test_review_inline_source_text_and_variant_grid(tmp_path):
                  "VALUES(1, 'title', '手表带', 'Ремешок')")
     conn.execute("INSERT INTO translations(product_id, field, zh, ru) "
                  "VALUES(1, 'description', '中文描述内容', 'Описание')")
+    conn.execute("INSERT INTO settings_kv(key, value) VALUES('cny_rub_rate', '12.0')")
     conn.execute("INSERT INTO source_snapshots(product_id, raw_json) VALUES(1, ?)",
                  (json.dumps({"source_url": "u", "platform": "1688", "title_zh": "手表带",
                               "price_cny": 5.0,
@@ -499,3 +500,14 @@ def test_review_backfills_source_text_from_snapshot(tmp_path):
     html = c.get("/products/1").text
     assert "原文：尼龙表带" in html
     assert "描述文本" in html
+
+
+def test_review_shows_pricing_and_preflight(tmp_path):
+    c, db_path = make_client(tmp_path)
+    _insert_product(db_path, "review")
+    conn = get_conn(db_path)
+    conn.execute("UPDATE products SET price_rub=50, stock=10 WHERE id=1")
+    conn.commit()
+    html = c.get("/products/1").text
+    assert "保本价" in html and "建议价" in html
+    assert "发布前检查" in html

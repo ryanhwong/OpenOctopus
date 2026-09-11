@@ -130,8 +130,11 @@ async def handle_generate(ctx, payload: dict) -> None:
 
     price = conn.execute("SELECT price_rub FROM products WHERE id=?", (pid,)).fetchone()["price_rub"]
     if price is None:
+        from openoctopus.rates import get_rate
+
         if getattr(s, "price_currency", "RUB").upper() == "RUB":
-            default_price = round(raw.price_cny * s.price_cny_to_rub)
+            rate = get_rate(conn, s.price_cny_to_rub)
+            default_price = round(raw.price_cny * rate)
         else:
             default_price = round(raw.price_cny, 2)
         conn.execute("UPDATE products SET price_rub=? WHERE id=?", (default_price, pid))
@@ -380,9 +383,12 @@ async def handle_publish(ctx, payload: dict) -> None:
             if user_price > 0:
                 vprice = round(user_price, 2)
             else:
+                from openoctopus.rates import get_rate
+
                 cny = min((g.price_cny for g in group if g.price_cny), default=0) or raw_pub.price_cny
                 if getattr(ctx.settings, "price_currency", "RUB").upper() == "RUB":
-                    vprice = round(cny * ctx.settings.price_cny_to_rub)
+                    rate = get_rate(conn, ctx.settings.price_cny_to_rub)
+                    vprice = round(cny * rate)
                 else:
                     vprice = round(cny, 2)
             imgs = list(dict.fromkeys(sw.get(opt_zh, []) + gallery_urls))
@@ -445,6 +451,8 @@ async def handle_publish(ctx, payload: dict) -> None:
     final = "listed" if status_text in ("exported", "imported", "skipped") else "failed"
     conn.execute("UPDATE products SET status=?, ozon_product_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
                  (final, ozon_pid or None, pid))
+    if final == "listed" and price:
+        conn.execute("UPDATE products SET last_price_sent=? WHERE id=?", (float(price), pid))
     conn.commit()
     # 发布成功后同步一次价格到 Ozon（注意用 Ozon 的 product_id，不是本地 id）
     if final == "listed" and price and price > 0 and ozon_pid:
