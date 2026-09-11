@@ -391,7 +391,7 @@ async def test_refresh_promotions_stores_rows(tmp_path):
                      "current_boost": 0, "max_boost": 55, "min_boost": 15, "stock": 5}]
 
         async def product_info_list(self, product_ids):
-            return [{"id": 100, "primary_image": "https://ir.ozone.ru/img.jpg"}]
+            return [{"id": 100, "primary_image": ["https://ir.ozone.ru/img.jpg"]}]
 
     db_path = str(tmp_path / "pr.db")
     init_db(db_path)

@@ -693,6 +693,8 @@ async def handle_refresh_promotions(ctx, payload: dict) -> None:
         try:
             for it in await ctx.ozon.product_info_list(batch):
                 src = it.get("primary_image") or ((it.get("images") or [None])[0])
+                if isinstance(src, list):
+                    src = src[0] if src else ""
                 if src:
                     imgs[str(it.get("id"))] = str(src)
         except Exception as e:  # noqa: BLE001
