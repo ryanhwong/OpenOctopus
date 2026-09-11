@@ -663,6 +663,7 @@ async def handle_refresh_promotions(ctx, payload: dict) -> None:
              int(a.get("participating_products_count") or 0),
              str(a.get("description") or "")[:2000]))
     conn.commit()
+    all_pids: list[int] = []
     for a in actions:
         aid = int(a.get("id") or 0)
         if not aid:
@@ -681,8 +682,26 @@ async def handle_refresh_promotions(ctx, payload: dict) -> None:
                  float(c.get("action_price") or 0), float(c.get("max_action_price") or 0),
                  int(c.get("current_boost") or 0), int(c.get("max_boost") or 0),
                  int(c.get("min_boost") or 0), int(c.get("stock") or 0)))
+            if str(c.get("id") or "").isdigit():
+                all_pids.append(int(c["id"]))
         conn.commit()
         await asyncio.sleep(0.3)
+    # 拉取候选商品主图（含老商品），存 image_url 供页面展示
+    imgs: dict[str, str] = {}
+    for i in range(0, len(list(dict.fromkeys(all_pids))), 100):
+        batch = list(dict.fromkeys(all_pids))[i:i + 100]
+        try:
+            for it in await ctx.ozon.product_info_list(batch):
+                src = it.get("primary_image") or ((it.get("images") or [None])[0])
+                if src:
+                    imgs[str(it.get("id"))] = str(src)
+        except Exception as e:  # noqa: BLE001
+            print(f"[promotions] images failed: {e}", file=sys.stderr)
+        await asyncio.sleep(0.2)
+    for pid_str, url in imgs.items():
+        conn.execute("UPDATE promotion_candidates SET image_url=? WHERE product_id=?",
+                     (url, pid_str))
+    conn.commit()
 
 
 async def handle_promotion_activate(ctx, payload: dict) -> None:

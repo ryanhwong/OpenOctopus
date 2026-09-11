@@ -34,9 +34,18 @@
                      {% if r['action_price'] %}checked{% endif %} style="width:auto;margin:0">
             </td>
             <td>
-              {% if r['local_id'] %}
-              <a href="/products/{{ r['local_id'] }}">#{{ r['local_id'] }} {{ (r['title_ru'] or '')[:30] }}</a>
-              {% else %}<span class="muted">{{ r['product_id'] }}</span>{% endif %}
+              <div style="display:flex;gap:8px;align-items:center">
+                {% if r['image_url'] %}
+                <img src="{{ r['image_url'] }}" alt="" loading="lazy" class="promo-thumb">
+                {% else %}
+                <span class="promo-thumb promo-thumb-empty" aria-hidden="true"></span>
+                {% endif %}
+                <span>
+                  {% if r['local_id'] %}
+                  <a href="/products/{{ r['local_id'] }}">#{{ r['local_id'] }} {{ (r['title_ru'] or '')[:30] }}</a>
+                  {% else %}<span class="muted">{{ r['product_id'] }}</span>{% endif %}
+                </span>
+              </div>
             </td>
             <td>{{ r['price'] }}</td>
             <td><strong>{{ r['max_action_price'] }}</strong></td>

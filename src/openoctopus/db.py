@@ -134,6 +134,7 @@ CREATE TABLE IF NOT EXISTS promotion_candidates(
   max_boost INTEGER DEFAULT 0,
   min_boost INTEGER DEFAULT 0,
   stock INTEGER DEFAULT 0,
+  image_url TEXT DEFAULT '',
   fetched_at TEXT DEFAULT CURRENT_TIMESTAMP);
 """
 
@@ -172,5 +173,8 @@ def init_db(path: str) -> None:
         conn.execute("ALTER TABLE products ADD COLUMN keywords TEXT")
     if "last_price_sent" not in prod_cols:
         conn.execute("ALTER TABLE products ADD COLUMN last_price_sent REAL")
+    pc_cols = [r["name"] for r in conn.execute("PRAGMA table_info(promotion_candidates)")]
+    if pc_cols and "image_url" not in pc_cols:
+        conn.execute("ALTER TABLE promotion_candidates ADD COLUMN image_url TEXT DEFAULT ''")
     conn.commit()
     conn.close()
