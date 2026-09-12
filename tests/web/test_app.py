@@ -577,14 +577,15 @@ def test_promotions_pages_and_actions(tmp_path):
     conn.execute("INSERT INTO promotions(action_id, title, date_start, date_end, potential) "
                  "VALUES(1977747, 'Эластичный бустинг', '2026-01-01', '2026-12-31', 10)")
     conn.execute("INSERT INTO promotion_candidates(action_id, product_id, price, "
-                 "max_action_price, stock, image_url) "
-                 "VALUES(1977747, '558174716', 40, 38, 5, 'https://ir.ozone.ru/x.jpg')")
+                 "max_action_price, stock, image_url, participating, action_price) "
+                 "VALUES(1977747, '558174716', 40, 38, 5, 'https://ir.ozone.ru/x.jpg', 1, 36)")
     conn.commit()
     html = c.get("/promotions").text
     assert "Эластичный бустинг" in html and "查看商品" in html
     detail = c.get("/promotions/1977747").text
     assert "558174716" in detail and "保本价" in detail and "参加选中" in detail
     assert 'src="https://ir.ozone.ru/x.jpg"' in detail
+    assert "已参加" in detail
     r = c.post("/promotions/1977747/activate",
                data={"sel_558174716": "1", "price_558174716": "36"},
                follow_redirects=False)

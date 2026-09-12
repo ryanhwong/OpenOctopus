@@ -9,7 +9,7 @@
     · 可参加 {{ promo['potential'] }} 个 · 已参加 {{ promo['participating_count'] }} 个
   </p>
   <p class="muted" style="margin:6px 0 0">
-    勾选商品并填促销价（不得超过「要求价 ≤」列），点「参加选中」。
+    勾选商品并填促销价（不得超过「要求价 ≤」列），点「参加选中」；已参加的商品默认勾选，点「退出选中」即可取消。
     盈亏列：<span class="rating rating-good">✓</span> 促销价不低于保本价 ·
     <span class="rating rating-bad">✕</span> 会亏本 ·
     <span class="muted">—</span> 非本店商品（无成本数据，谨慎参加）
@@ -31,7 +31,8 @@
             <td>
               <input type="checkbox" name="sel_{{ r['product_id'] }}" value="1"
                      aria-label="选择商品 {{ r['product_id'] }}"
-                     {% if r['action_price'] %}checked{% endif %} style="width:auto;margin:0">
+                     {% if r['participating'] or r['action_price'] %}checked{% endif %}
+                     style="width:auto;margin:0">
             </td>
             <td>
               <div style="display:flex;gap:8px;align-items:center">
@@ -44,6 +45,10 @@
                   {% if r['local_id'] %}
                   <a href="/products/{{ r['local_id'] }}">#{{ r['local_id'] }} {{ (r['title_ru'] or '')[:30] }}</a>
                   {% else %}<span class="muted">{{ r['product_id'] }}</span>{% endif %}
+                  {% if r['participating'] %}
+                  <span class="pill pill-listed" style="margin-left:6px">已参加</span>
+                  {% if r['add_mode'] %}<span class="muted" style="font-size:11px">（{{ r['add_mode'] }}）</span>{% endif %}
+                  {% endif %}
                 </span>
               </div>
             </td>

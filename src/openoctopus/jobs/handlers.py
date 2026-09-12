@@ -686,7 +686,42 @@ async def handle_refresh_promotions(ctx, payload: dict) -> None:
                 all_pids.append(int(c["id"]))
         conn.commit()
         await asyncio.sleep(0.3)
-    # 拉取候选商品主图（含老商品），存 image_url 供页面展示
+    # 已参加活动的商品：标记 participating 并补 action_price（不在候选里的新品种也插入）
+    for a in actions:
+        aid = int(a.get("id") or 0)
+        if not aid:
+            continue
+        try:
+            data = (await ctx.ozon.action_products(aid, limit=1000)).get("result") or {}
+            prods = data.get("products", []) if isinstance(data, dict) else []
+        except Exception as e:  # noqa: BLE001
+            print(f"[promotions] action products failed for {aid}: {e}", file=sys.stderr)
+            prods = []
+        for p in prods:
+            pid_s = str(p.get("id") or "")
+            if not pid_s:
+                continue
+            row = conn.execute(
+                "SELECT id FROM promotion_candidates WHERE action_id=? AND product_id=?",
+                (aid, pid_s)).fetchone()
+            if row:
+                conn.execute(
+                    "UPDATE promotion_candidates SET participating=1, action_price=?, "
+                    "max_action_price=?, add_mode=?, stock=?, price=? WHERE id=?",
+                    (float(p.get("action_price") or 0), float(p.get("max_action_price") or 0),
+                     str(p.get("add_mode") or ""), int(p.get("stock") or 0),
+                     float(p.get("price") or 0), row["id"]))
+            else:
+                conn.execute(
+                    "INSERT INTO promotion_candidates(action_id, product_id, price, action_price, "
+                    "max_action_price, stock, participating, add_mode) VALUES(?,?,?,?,?,?,1,?)",
+                    (aid, pid_s, float(p.get("price") or 0),
+                     float(p.get("action_price") or 0), float(p.get("max_action_price") or 0),
+                     int(p.get("stock") or 0), str(p.get("add_mode") or "")))
+            if pid_s.isdigit():
+                all_pids.append(int(pid_s))
+        conn.commit()
+        await asyncio.sleep(0.3)
     imgs: dict[str, str] = {}
     for i in range(0, len(list(dict.fromkeys(all_pids))), 100):
         batch = list(dict.fromkeys(all_pids))[i:i + 100]

@@ -598,7 +598,8 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
             titles[r["product_id"]] = r["ru"]
         rows = []
         for c in conn.execute("SELECT * FROM promotion_candidates WHERE action_id=? "
-                              "ORDER BY max_action_price DESC, product_id", (action_id,)):
+                              "ORDER BY participating DESC, max_action_price DESC, product_id",
+                              (action_id,)):
             local = pid_map.get(str(c["product_id"]))
             be = None
             if local and costs.get(local):

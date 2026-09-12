@@ -135,6 +135,8 @@ CREATE TABLE IF NOT EXISTS promotion_candidates(
   min_boost INTEGER DEFAULT 0,
   stock INTEGER DEFAULT 0,
   image_url TEXT DEFAULT '',
+  participating INTEGER DEFAULT 0,
+  add_mode TEXT DEFAULT '',
   fetched_at TEXT DEFAULT CURRENT_TIMESTAMP);
 """
 
@@ -176,5 +178,9 @@ def init_db(path: str) -> None:
     pc_cols = [r["name"] for r in conn.execute("PRAGMA table_info(promotion_candidates)")]
     if pc_cols and "image_url" not in pc_cols:
         conn.execute("ALTER TABLE promotion_candidates ADD COLUMN image_url TEXT DEFAULT ''")
+    if pc_cols and "participating" not in pc_cols:
+        conn.execute("ALTER TABLE promotion_candidates ADD COLUMN participating INTEGER DEFAULT 0")
+    if pc_cols and "add_mode" not in pc_cols:
+        conn.execute("ALTER TABLE promotion_candidates ADD COLUMN add_mode TEXT DEFAULT ''")
     conn.commit()
     conn.close()

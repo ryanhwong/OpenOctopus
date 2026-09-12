@@ -393,6 +393,11 @@ async def test_refresh_promotions_stores_rows(tmp_path):
         async def product_info_list(self, product_ids):
             return [{"id": 100, "primary_image": ["https://ir.ozone.ru/img.jpg"]}]
 
+        async def action_products(self, action_id, limit=1000, offset=0):
+            return {"result": {"products": [
+                {"id": 100, "action_price": 30, "max_action_price": 33, "add_mode": "MANUAL",
+                 "stock": 5, "price": 40}]}}
+
     db_path = str(tmp_path / "pr.db")
     init_db(db_path)
     ctx = SimpleNamespace(db_path=db_path, ozon=FakeOzon())
@@ -403,6 +408,8 @@ async def test_refresh_promotions_stores_rows(tmp_path):
     cand = conn.execute("SELECT * FROM promotion_candidates").fetchone()
     assert cand["product_id"] == "100" and cand["max_action_price"] == 33
     assert cand["image_url"] == "https://ir.ozone.ru/img.jpg"
+    assert cand["participating"] == 1 and cand["action_price"] == 30.0
+    assert cand["add_mode"] == "MANUAL"
 
 
 async def test_promotion_activate_deactivate_pass_through(tmp_path):

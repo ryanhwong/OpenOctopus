@@ -86,6 +86,12 @@ class OzonClient:
         return await self._post("/v1/actions/products/activate",
                                 {"action_id": action_id, "products": products})
 
+    async def action_products(self, action_id: int, limit: int = 1000,
+                              offset: int = 0) -> dict:
+        """已参加活动的商品列表（含 action_price / add_mode）。"""
+        return await self._post("/v1/actions/products",
+                                {"action_id": action_id, "limit": limit, "offset": offset})
+
     async def action_deactivate(self, action_id: int, product_ids: list[int]) -> dict:
         return await self._post("/v1/actions/products/deactivate",
                                 {"action_id": action_id, "product_ids": product_ids})
