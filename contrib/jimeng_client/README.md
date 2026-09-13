@@ -19,6 +19,15 @@ curl -fsSL https://jimeng.jianying.com/cli | bash
 ```
 
 > macOS / Linux 均可；Windows 建议 WSL。CLI 默认安装到 `~/.dreamina_cli/dreamina`。
+>
+> **同一台主机只需装一次、登录一次**：二进制是全局一份（`~/.dreamina_cli/dreamina`），
+> 登录凭证存系统钥匙串（macOS Keychain，service=`dreamina`），所有项目共享。
+> 只有 token 过期时才需要重新 `dreamina login`（仍是每台机一次，不是每项目）。
+> CLI 装在别处时，用环境变量 `DREAMINA_CLI=/path/to/dreamina` 或构造参数 `JimengClient(path)`。
+>
+> **多项目隔离**：`--session 0` 是全局默认会话，多项目共用会共享上下文。
+> 需要隔离时各自建会话：`dreamina session create --name "项目A"`，
+> 调用时传 `session=<id>`（`dreamina session list` 查看）。
 
 ## 2. Python 用法
 
