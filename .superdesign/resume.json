@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "targets": {
+    "/products/{pid}": {
+      "targetKind": "existing-ui",
+      "projectId": "9c92491a-98dc-401d-8200-ea3da73f5a47",
+      "baselineDraftId": "ebf77a2a-b6ad-46fc-99b1-922d7d880a92",
+      "activeDraftId": "ebf77a2a-b6ad-46fc-99b1-922d7d880a92",
+      "designSystemPath": ".superdesign/design-system.md",
+      "referenceIds": [
+        "db4a00d6-749b-4afe-a1a9-f6183f2aae1e"
+      ],
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        ".superdesign/init/theme.md",
+        ".superdesign/init/components.md",
+        "src/openoctopus/web/templates/base.html",
+        "src/openoctopus/web/templates/review.html"
+      ],
+      "fingerprints": {
+        ".superdesign/design-system.md": "b48ff0283b1cad8cb5eb7d04a1bca63e9d971b4c8c01038a21d769a56052129a",
+        ".superdesign/init/theme.md": "e91c07c0ef01db7c9053253b10fa6ea815c26d30c014446d20472cb9e46c135f",
+        ".superdesign/init/components.md": "9db0c5582ce154ea03783224020943df518f57540a8215fc6ce9b326e2d9b4d2",
+        "src/openoctopus/web/templates/base.html": "63334138c4c7df1cfded3ea0b2ef7bb0236f3344553980665120546ac5dbff9c",
+        "src/openoctopus/web/templates/review.html": "2e0e10e6cad1229bce8da5d1b1591855282597e14266328ff850badeac1f1119"
+      },
+      "components": [
+        {
+          "name": "TopNav",
+          "id": "3482b2e6-577d-47df-84a1-f9c2e3693b3f",
+          "sourcePath": "src/openoctopus/web/templates/base.html"
+        },
+        {
+          "name": "PageHeader",
+          "id": "417e7e37-617b-4758-a0cf-8d58067893d3",
+          "sourcePath": "src/openoctopus/web/templates/dashboard.html"
+        },
+        {
+          "name": "ProductHero",
+          "id": "3b145883-6ba5-4231-91ad-dec51aa20869",
+          "sourcePath": "src/openoctopus/web/templates/review.html"
+        },
+        {
+          "name": "ActionBar",
+          "id": "7473b2f8-2de5-4471-b533-d27cd06c34b9",
+          "sourcePath": "src/openoctopus/web/templates/review.html"
+        },
+        {
+          "name": "StatusPill",
+          "id": "28e2ec47-eafb-4012-bc50-467d6fd094e9",
+          "sourcePath": "src/openoctopus/web/templates/base.html"
+        }
+      ],
+      "drafts": {
+        "ebf77a2a-b6ad-46fc-99b1-922d7d880a92": {
+          "title": "Baseline v2 · 人审页现状复刻",
+          "visualDirection": "faithful reproduction of the current light indigo/emerald UI; ground truth for branching",
+          "parentDraftId": null,
+          "currentVersion": 1
+        }
+      },
+      "updatedAt": "2026-09-28T06:13:00+00:00"
+    }
+  }
+}
