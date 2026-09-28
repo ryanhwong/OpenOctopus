@@ -1,0 +1,16 @@
+Keep the stepped-workbench structure exactly as it is now — same 5-step horizontal stepper, same one-step-expanded pattern, same collapsed summary rows, same sticky right rail (发布前检查 + 价格概览 + 提交上架), same palette, same Chinese labels. Do not restructure it into a different layout.
+
+Make these three corrections and additions:
+
+1. SHOW A SECOND EXPANDED STEP so the design covers a media-heavy step, not just a form-heavy one. Below the existing "1. 文案与标题" expanded section, render "5. 图片与发布前检查" in the SAME expanded visual treatment (indigo 1.5px border, indigo step heading, p-6), and mark step 1 and step 5 as the two expanded ones while steps 2, 3 and 4 stay as collapsed summary rows. Inside expanded step 5 include, at production-realistic scale but with a representative sample of about 8 cards rather than all 31:
+   - a toolbar with the title 图片前后对比（31 张）, a muted note, and an outline button 生成首图信息图;
+   - a 4-column grid of image cards, each with a kind pill (主图 / 详情图 / 色卡), a muted "#id · uploaded" line, a 2-up pair of product photos on a white background captioned 源图 and 译文图, a checked "用于上架" checkbox, and a collapsed "自定义重生成" details containing a small input and a 重生成 button;
+   - after the grid, a 发布前检查 block with a realistic MIX of results, not just one passing row: at least one ✓ pass (e.g. 标题已翻译 / 类目已选择 / 必填属性齐全), at least one ! warning (e.g. 内容评级 27，低于 80 分会影响曝光 / 2 张图片未勾选用于上架), and at least one × failure (e.g. 主图仍含中文文字). Use the existing semantic dot colors.
+   Also render step 4 (颜色变体) as a collapsed summary row but make its summary text specific: "29 组变体 · 28 已匹配词典 · 1 组未匹配".
+
+2. GIVE THE TOP NAV AN ACTIVE STATE. The 商品 link must be the active item (filled indigo background, white text, matching the design system's active chip treatment); 看板 / 促销 / 任务 stay as white outline buttons. Also add `aria-current="page"` to the active link.
+
+3. MAKE THE PRICE FIGURES MATCH THE REAL PRODUCT DATA. Replace the invented numbers with these exact values everywhere they appear, including the right rail 价格概览: 成本 16.8 CNY（含物流 3.4）· 汇率 12.80 · 佣金 20.0% · 保本价 19.38 CNY · 建议价 38.9 CNY · 当前利润率 60.2% · 库存 100. The collapsed summary row for step 2 must read "价格 75.0 CNY · 利润率 60.2% · 库存 100".
+
+Keep every field, button and capability that exists in the current draft. Do not change the color palette, the font stack, or the status-color semantics.
+Use ONLY the fonts, colors, spacing, and component styles defined in the design system. Do not introduce any fonts, colors, or visual styles not in the design system.

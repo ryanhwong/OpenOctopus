@@ -1,0 +1,14 @@
+DIRECTION C — GALLERY-FIRST INSPECTOR (imagery is the primary object, details on selection)
+
+Restructure this human-review page so that imagery is the primary object of review. Keep the exact same indigo/emerald palette, the same Chinese labels, the same fields, the same buttons and the same functionality — change only layout and hierarchy.
+
+Layout changes:
+- Three-region layout: a narrow left FILMSTRIP rail (~120px, full height, scrolls independently) listing every image as a small square thumbnail with a kind badge (主图/详情图/色卡) and a selection checkmark; the video appears as the first frame of the rail with a small play marker. The first filmstrip item is selected.
+- CENTER STAGE: one large preview of the selected item at full size on a neutral light background, with a caption strip underneath giving the image id, kind, status and the "用于上架" checkbox as a clear control.
+- RIGHT INSPECTOR column (~340px) shows the details of whatever is selected. For an image: the 源图 and 译文图 side by side, the 自定义重生成 prompt input with its 重生成 button, and the selection checkbox. For the video: the player plus the rich-content blocks list. For a variant: its swatch, Russian and Chinese names, price, 词典/文本 state and spec count. Only the relevant inspector content is shown at a time, with a small segmented switcher at its top (图片 / 视频 / 变体 / 详情页).
+- Move the 文案与价格 form (俄语草稿: 标题候选, 标题, 描述, 价格, 保本价/建议价, 库存, 尺寸, 类目) into a COLLAPSIBLE panel ABOVE the stage labelled 商品信息, collapsed by default with a one-line summary of the current values (title, price, stock) so it can be opened when needed.
+- Render 发布前检查 as a compact always-visible status strip (a single row of pass/warn/fail pills) directly under the hero, instead of a large card at the bottom.
+- Keep the 提交上架 action reachable: a sticky bottom bar with the emerald primary action plus 重新生成 and 删除商品.
+
+Do not remove any field, button, label or capability. Do not change the color palette, the font stack, or the status-color semantics.
+Use ONLY the fonts, colors, spacing, and component styles defined in the design system. Do not introduce any fonts, colors, or visual styles not in the design system.

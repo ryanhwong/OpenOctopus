@@ -1,0 +1,23 @@
+Create a PIXEL-PERFECT reproduction of the current human-review page (人审页) of the OpenOctopus 1688→Ozon listing workbench. Use the provided Jinja source templates and the attached reference screenshot as the single source of truth. Match EXACTLY: all element sizes, colors, spacing, fonts, border-radius, shadows, and every piece of visible content. The reproduction must be indistinguishable from the original. Do NOT redesign, do NOT improve, do NOT add, remove or reorder anything.
+
+Page structure, top to bottom (ONE long scrolling page, content column max-width 1280px centered, page background #f5f3ff, white cards with 1px #e5e7eb border, 12px radius, 20px padding, 20px gap between cards, body 15px/1.6 in the system sans + PingFang SC stack):
+
+1. Sticky topbar (white, 1px bottom border, 12px 24px padding): indigo bold 18px text wordmark "OpenOctopus" with a small gray 12px subtitle "1688 → Ozon 搬运工作台"; four nav links 商品 / 看板 / 促销 / 任务 styled as white buttons with a gray border (there is NO active state on any of them); right-aligned white outline button "← 返回看板".
+
+2. Hero card: a 64px square product thumbnail, then a bold 22px line "商品 #2" followed by a green rounded status pill reading "listed", then a muted 13px line "来源：https://detail.1688.com/offer/785464166129.html ｜ 上架价：75.0 CNY", then a bold Russian product title.
+
+3. A two-column grid (1fr 1fr, 20px gap, top-aligned):
+   LEFT card titled "俄语草稿": a "标题候选" label; a vertical list of 4 radio rows, each with a small indigo pill style badge (风格 / 关键词 / 痛点 / 场景) above a Russian title; a row of two small outline buttons "重新生成候选" and "抓取 Ozon 搜索词"; a muted line "已抓取搜索词: …" with several Russian keywords separated by dots; a text input containing the Russian title; a muted "原文：" line with the Chinese source title; a row with the label "描述 (RU)" on the left and a small outline button "AI 优化描述" on the right; a tall textarea of Russian marketing text; a collapsed "查看中文原文" details containing the Chinese paragraph in a light gray well; a "价格 (CNY)" input showing 75.0; a light gray info well with three lines — 成本 / 汇率 / 佣金, then 保本价 / 建议价 with a small "填入建议价" button, then 当前利润率 in green; a "库存" number input showing 100; a row of 4 equal small inputs (长 / 宽 / 高 / 重); a category text input; a "类目属性 JSON" textarea showing a JSON object; and a solid indigo "保存草稿" button.
+   RIGHT column, two stacked cards:
+   4a. "视频与详情页（Ozon 富内容）": a black 16:9 video player with a poster showing three smart watches, a muted caption line, an outline button "重新生成视频"; then an h3 "详情页（图文介绍）", a muted note, and 4 repeated rich-content blocks — each an 84px square image on the left with a "标题" input and a "文字" textarea on the right — then an outline button "重新生成详情页", then a collapsed "高级：原始 JSON（一般不用改）" details.
+   4b. "颜色变体（29 组）": a muted explanatory line, then a 2-column grid of 29 compact rows; each row is a 38px square color-swatch photo plus a Russian color name, a Chinese color name, and a muted meta line with the price, a green "✓ 词典" or amber "文本" marker, and a spec count.
+
+4. Full-width card "图片前后对比（31 张）": header with the title, a muted note, and an outline button "生成首图信息图"; then a 4-column grid of 31 image cards — each with a kind pill (主图 / 详情图 / 色卡), a muted "#id · uploaded" line, a 2-up pair of product photos on a white background captioned 源图 and 译文图, a checked "用于上架" checkbox, and a collapsed "自定义重生成" details.
+
+5. Full-width card "发布前检查": a single green check row reading "全部检查通过".
+
+6. Bottom action bar (white, 1px border, 12px radius): an emerald "提交上架" button, an outline "重新生成" button, an outline red "删除商品" button, and a muted hint "提交前请确认译文、价格、类目与必填属性无误".
+
+Use ONLY the fonts, colors, spacing, and component styles defined in the design system. Do not introduce any fonts, colors, or visual styles not in the design system.
+
+CRITICAL: Do NOT embed, reference or link the review-page screenshot anywhere in the output. Every part of this page must be built as real, semantic HTML elements (divs, labels, inputs, textareas, buttons, tables) with the design system's colors and spacing. Product photos, the video poster and the color swatches must be rendered as inline placeholder blocks (e.g. https://placehold.co/...), not as one big screenshot image. The output must be a working re-creation of the page, not an image of the page.

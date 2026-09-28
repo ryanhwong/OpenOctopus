@@ -1,0 +1,137 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>人审 #2 - OpenOctopus</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={theme:{extend:{fontFamily:{sans:['Fira Sans','system-ui','-apple-system','PingFang SC','Microsoft YaHei','sans-serif']},colors:{page:'#f5f3ff',ink:'#1e1b4b',muted:'#6b7280',line:'#e5e7eb',primary:'#6366f1','primary-dark':'#4f46e5','primary-soft':'#e0e7ff',well:'#f8f8fc',success:'#059669','success-bg':'#d1fae5',warning:'#b45309','warning-bg':'#fef3c7',danger:'#dc2626','danger-bg':'#fee2e2',cta:'#10b981','cta-dark':'#059669'}}}}
+</script>
+</head>
+<body>
+<div class="min-h-screen bg-page font-sans text-[15px] leading-[1.6] text-ink" data-sd-id="1">
+<header class="sticky top-0 z-40 flex min-h-[56px] items-center gap-4 border-b border-line bg-white px-6 py-3" data-sd-id="2">
+  <a id="brand-home-link" href="/" class="whitespace-nowrap text-[18px] font-bold text-primary no-underline" data-sd-id="3">OpenOctopus<span class="ml-2 text-[12px] font-normal text-muted" data-sd-id="4">1688 → Ozon 搬运工作台</span></a>
+  <nav class="flex gap-1.5" aria-label="主导航" data-sd-id="5">
+    <a id="nav-products-link" href="/" class="inline-flex min-h-10 items-center justify-center rounded-lg border border-line bg-white px-[18px] py-2 text-[14px] font-semibold text-ink no-underline transition-colors duration-[180ms] hover:border-primary hover:text-primary" data-sd-id="6">商品</a>
+    <a id="nav-dashboard-link" href="/dashboard" class="inline-flex min-h-10 items-center justify-center rounded-lg border border-line bg-white px-[18px] py-2 text-[14px] font-semibold text-ink no-underline transition-colors duration-[180ms] hover:border-primary hover:text-primary" data-sd-id="7">看板</a>
+    <a id="nav-promotions-link" href="/promotions" class="inline-flex min-h-10 items-center justify-center rounded-lg border border-line bg-white px-[18px] py-2 text-[14px] font-semibold text-ink no-underline transition-colors duration-[180ms] hover:border-primary hover:text-primary" data-sd-id="8">促销</a>
+    <a id="nav-jobs-link" href="/jobs" class="inline-flex min-h-10 items-center justify-center rounded-lg border border-line bg-white px-[18px] py-2 text-[14px] font-semibold text-ink no-underline transition-colors duration-[180ms] hover:border-primary hover:text-primary" data-sd-id="9">任务</a>
+  </nav>
+  <nav class="ml-auto" data-sd-id="10"><a id="back-dashboard-link" href="/" class="inline-flex min-h-10 items-center justify-center rounded-lg border border-line bg-white px-[18px] py-2 text-[14px] font-semibold text-ink no-underline transition-colors duration-[180ms] hover:border-primary hover:text-primary" data-sd-id="11">← 返回看板</a></nav>
+</header>
+
+<main class="mx-auto max-w-[1280px] px-6 pb-24 pt-6" data-sd-id="12">
+<section class="mb-5 rounded-xl border border-line bg-white p-5" data-sd-id="13">
+  <div class="flex items-center gap-3.5" data-sd-id="14">
+    <img src="https://placehold.co/128x128/f8f8fc/6366f1?text=Watch" alt="主图缩略图" class="h-16 w-16 flex-none rounded-lg bg-primary-soft object-cover" data-sd-id="15">
+    <div class="min-w-0" data-sd-id="16">
+      <h1 class="mb-1 text-[22px] font-bold tracking-tight" data-sd-id="17">商品 #2 <span class="inline-block whitespace-nowrap rounded-full bg-success-bg px-2.5 py-0.5 align-middle text-[12px] font-semibold text-success" data-sd-id="18">listed</span></h1>
+      <p class="m-0 text-[13px] text-muted" data-sd-id="19">来源：<a id="product-source-link" href="https://detail.1688.com/offer/785464166129.html" class="break-all text-primary" data-sd-id="20">https://detail.1688.com/offer/785464166129.html</a> ｜ 上架价：<strong class="text-ink">75.0 CNY</strong></p>
+      <p class="mb-0 mt-1.5 font-semibold" data-sd-id="21">Комфорт и надёжная фиксация смарт-часов</p>
+    </div>
+  </div>
+</section>
+
+<div class="grid grid-cols-1 items-start gap-5 lg:grid-cols-2" data-sd-id="22">
+<section class="rounded-xl border border-line bg-white p-5" aria-label="俄语草稿编辑" data-sd-id="23">
+  <h2 class="mb-3 mt-0 text-[17px] font-bold tracking-tight" data-sd-id="24">俄语草稿</h2>
+  <label class="mt-1 block text-[13px] font-semibold" data-sd-id="25">标题候选</label>
+  <div class="my-1.5 mb-2.5 flex flex-col gap-1.5" role="radiogroup" aria-label="标题候选" data-sd-id="26">
+    <label class="flex cursor-pointer items-start gap-2 rounded-lg border border-line bg-white px-2.5 py-2 font-normal transition-colors duration-[180ms] hover:border-primary" data-sd-id="27"><input type="radio" name="title_pick" value="1" form="edit-form" checked="" class="mt-[3px] h-auto w-auto flex-none" data-sd-id="28"><span class="min-w-0" data-sd-id="29"><span class="mb-0.5 inline-block rounded-full bg-primary-soft px-2 text-[11px] font-bold text-primary-dark" data-sd-id="30">风格</span><span class="block break-words text-[13px] leading-[1.4]" data-sd-id="31">Комфорт и надёжная фиксация смарт-часов</span></span></label>
+    <label class="flex cursor-pointer items-start gap-2 rounded-lg border border-line bg-white px-2.5 py-2 font-normal transition-colors duration-[180ms] hover:border-primary" data-sd-id="32"><input type="radio" name="title_pick" value="2" form="edit-form" class="mt-[3px] h-auto w-auto flex-none" data-sd-id="33"><span class="min-w-0" data-sd-id="34"><span class="mb-0.5 inline-block rounded-full bg-primary-soft px-2 text-[11px] font-bold text-primary-dark" data-sd-id="35">关键词</span><span class="block break-words text-[13px] leading-[1.4]" data-sd-id="36">Ремешок для смарт-часов, мягкий силиконовый браслет</span></span></label>
+    <label class="flex cursor-pointer items-start gap-2 rounded-lg border border-line bg-white px-2.5 py-2 font-normal transition-colors duration-[180ms] hover:border-primary" data-sd-id="37"><input type="radio" name="title_pick" value="3" form="edit-form" class="mt-[3px] h-auto w-auto flex-none" data-sd-id="38"><span class="min-w-0" data-sd-id="39"><span class="mb-0.5 inline-block rounded-full bg-primary-soft px-2 text-[11px] font-bold text-primary-dark" data-sd-id="40">痛点</span><span class="block break-words text-[13px] leading-[1.4]" data-sd-id="41">Удобный ремешок без натирания для умных часов</span></span></label>
+    <label class="flex cursor-pointer items-start gap-2 rounded-lg border border-line bg-white px-2.5 py-2 font-normal transition-colors duration-[180ms] hover:border-primary" data-sd-id="42"><input type="radio" name="title_pick" value="4" form="edit-form" class="mt-[3px] h-auto w-auto flex-none" data-sd-id="43"><span class="min-w-0" data-sd-id="44"><span class="mb-0.5 inline-block rounded-full bg-primary-soft px-2 text-[11px] font-bold text-primary-dark" data-sd-id="45">场景</span><span class="block break-words text-[13px] leading-[1.4]" data-sd-id="46">Спортивный ремешок для часов на каждый день</span></span></label>
+  </div>
+  <div class="mb-2.5 flex flex-wrap gap-2" data-sd-id="47">
+    <form method="post" action="/products/2/titles/regenerate" data-sd-id="48"><button type="submit" class="min-h-8 rounded-lg border border-line bg-white px-3 py-0.5 text-[14px] font-semibold transition-colors duration-[180ms] hover:border-primary hover:text-primary" data-sd-id="49">重新生成候选</button></form>
+    <form method="post" action="/products/2/keywords/fetch" data-sd-id="50"><button type="submit" class="min-h-8 rounded-lg border border-line bg-white px-3 py-0.5 text-[14px] font-semibold transition-colors duration-[180ms] hover:border-primary hover:text-primary" data-sd-id="51">抓取 Ozon 搜索词</button></form>
+  </div>
+  <p class="mb-2.5 mt-0 text-[13px] text-muted" data-sd-id="52">已抓取搜索词：ремешок для часов · силиконовый браслет · смарт-часы · спортивный ремешок</p>
+
+  <form method="post" action="/products/2/edit" id="edit-form" data-sd-id="53">
+    <label for="f-title" class="mt-1 block text-[13px] font-semibold" data-sd-id="54">标题 (RU)</label>
+    <input id="f-title" name="title_ru" type="text" value="Комфорт и надёжная фиксация смарт-часов" class="mb-1 mt-1 w-full rounded-lg border border-line bg-white px-3 py-[9px] text-[14px] outline-primary" data-sd-id="55">
+    <span id="title-count" aria-live="polite" class="text-[13px] text-muted" data-sd-id="56">45 / 150 字符</span>
+    <p class="mb-3 mt-[-2px] text-[13px] text-muted" data-sd-id="57">原文：适用于智能手表的舒适硅胶运动表带</p>
+
+    <div class="flex items-center justify-between gap-2" data-sd-id="58"><label for="f-desc" class="m-0 block text-[13px] font-semibold" data-sd-id="59">描述 (RU)</label><button type="button" class="min-h-7 rounded-lg border border-line bg-white px-2.5 text-[12px] font-semibold transition-colors duration-[180ms] hover:border-primary hover:text-primary" data-sd-id="60">AI 优化描述</button></div>
+    <textarea id="f-desc" name="description_ru" rows="8" class="mb-3 mt-1 w-full rounded-lg border border-line bg-white px-3 py-[9px] text-[14px] outline-primary" data-sd-id="61">Мягкий силиконовый ремешок создан для комфортного повседневного ношения смарт-часов. Гибкий материал приятно прилегает к коже, устойчив к влаге и легко очищается. Надёжная застёжка фиксирует часы во время прогулок, тренировок и активного отдыха. Регулируемая длина помогает подобрать удобную посадку для запястья.</textarea>
+    <details class="mb-3 mt-[-8px]" data-sd-id="62"><summary class="cursor-pointer text-[13px] font-semibold text-muted" data-sd-id="63">查看中文原文</summary><div class="mt-1.5 rounded-lg border border-line bg-well px-3.5 py-3 text-[14px]" data-sd-id="64">柔软硅胶表带适合日常佩戴，贴合手腕，防水耐汗且易于清洁。牢固表扣可在运动和户外活动中稳定固定手表，多档调节设计适配不同腕围。</div></details>
+
+    <label for="f-price" class="mt-1 block text-[13px] font-semibold" data-sd-id="65">价格 (CNY)</label>
+    <input id="f-price" name="price_rub" type="text" value="75.0" class="mb-3.5 mt-1 w-full rounded-lg border border-line bg-white px-3 py-[9px] text-[14px] outline-primary" data-sd-id="66">
+    <div class="mb-3.5 mt-[-8px] rounded-lg border border-line bg-well px-2.5 py-2 text-[12px] leading-[1.8] text-muted" data-sd-id="67">
+      <div data-sd-id="68">成本 <strong class="text-ink">16.8</strong> CNY（含物流 6.0） · 汇率 <strong class="text-ink">12.80</strong> · 佣金 18%</div>
+      <div data-sd-id="69">保本价 <strong class="text-ink">35.2</strong> · 建议价 <strong class="text-ink">75.0</strong>（目标利润率 30%） <button type="button" class="ml-1.5 min-h-[26px] rounded-lg border border-line bg-white px-2 text-[12px] font-semibold hover:border-primary hover:text-primary" data-sd-id="70">填入建议价</button></div>
+      <div data-sd-id="71">当前利润率 <strong class="text-success">36.4%</strong> · 上次发布价 75.0</div>
+    </div>
+
+    <label for="f-stock" class="mt-1 block text-[13px] font-semibold" data-sd-id="72">库存 (每 SKU 同量，0=不改)</label>
+    <input id="f-stock" name="stock" type="number" value="100" class="mb-3.5 mt-1 w-full rounded-lg border border-line bg-white px-3 py-[9px] text-[14px] outline-primary" data-sd-id="73">
+    <label class="mt-1 block text-[13px] font-semibold" data-sd-id="74">尺寸重量（长mm × 宽mm × 高mm，重量g；填全才传 Ozon，包装另计）</label>
+    <div class="flex gap-2" data-sd-id="75"><input name="length_mm" type="text" placeholder="长" value="210" class="mb-3.5 mt-1 min-w-0 flex-1 rounded-lg border border-line px-3 py-[9px] text-[14px]" data-sd-id="76"><input name="width_mm" type="text" placeholder="宽" value="22" class="mb-3.5 mt-1 min-w-0 flex-1 rounded-lg border border-line px-3 py-[9px] text-[14px]" data-sd-id="77"><input name="height_mm" type="text" placeholder="高" value="8" class="mb-3.5 mt-1 min-w-0 flex-1 rounded-lg border border-line px-3 py-[9px] text-[14px]" data-sd-id="78"><input name="weight_g" type="text" placeholder="重(g)" value="28" class="mb-3.5 mt-1 min-w-0 flex-1 rounded-lg border border-line px-3 py-[9px] text-[14px]" data-sd-id="79"></div>
+    <label for="f-cat" class="mt-1 block text-[13px] font-semibold" data-sd-id="80">Ozon 叶子类型（类目:类型）</label>
+    <input id="f-cat" name="ozon_category_id" type="text" value="12345:67890" class="mb-3.5 mt-1 w-full rounded-lg border border-line px-3 py-[9px] text-[14px]" data-sd-id="81">
+    <label for="f-attrs" class="mt-1 block text-[13px] font-semibold" data-sd-id="82">类目属性 JSON</label>
+    <textarea id="f-attrs" name="attributes_json" rows="5" spellcheck="false" class="mb-3.5 mt-1 w-full rounded-lg border border-line px-3 py-[9px] font-mono text-[14px]" data-sd-id="83">{
+  "brand": "No name",
+  "material": "Силикон",
+  "type": "Ремешок для часов"
+}</textarea>
+    <button type="submit" class="inline-flex min-h-10 items-center justify-center rounded-lg border border-primary bg-primary px-[18px] py-2 text-[14px] font-semibold text-white transition-colors duration-[180ms] hover:bg-primary-dark" data-sd-id="84">保存草稿</button>
+  </form>
+</section>
+
+<div data-sd-id="85">
+<section class="mb-5 rounded-xl border border-line bg-white p-5" aria-label="视频与详情页" data-sd-id="86">
+  <h2 class="mb-3 mt-0 text-[17px] font-bold tracking-tight" data-sd-id="87">视频与详情页（Ozon 富内容）</h2>
+  <h3 class="mb-2 mt-2 text-[15px] font-bold" data-sd-id="88">商品视频</h3>
+  <div class="aspect-video w-full overflow-hidden rounded-lg bg-black" data-sd-id="89"><img src="https://placehold.co/960x540/0f172a/e2e8f0?text=Smart+Watch+%C2%B7+Smart+Watch+%C2%B7+Smart+Watch" alt="商品视频封面，三款智能手表" class="h-full w-full object-contain" data-sd-id="90"></div>
+  <p class="mb-0 mt-1.5 text-[13px] text-muted" data-sd-id="91">幻灯片视频（8-30 秒），上架时随卡片作为 Ozon 视频/视频封面</p>
+  <form method="post" action="/products/2/content/video/regenerate" class="mt-2" data-sd-id="92"><button type="submit" class="min-h-10 rounded-lg border border-line bg-white px-[18px] py-2 text-[14px] font-semibold hover:border-primary hover:text-primary" data-sd-id="93">重新生成视频</button></form>
+  <h3 class="mb-2 mt-5 text-[15px] font-bold" data-sd-id="94">详情页（图文介绍）</h3>
+  <p class="text-[13px] text-muted" data-sd-id="95">上架后展示在商品描述区，可直接预览编辑，「保存草稿」后生效。</p>
+  <div id="rich-blocks" data-sd-id="96"></div>
+  <form method="post" action="/products/2/content/rich/regenerate" class="mt-1.5" data-sd-id="97"><button type="submit" class="min-h-10 rounded-lg border border-line bg-white px-[18px] py-2 text-[14px] font-semibold hover:border-primary hover:text-primary" data-sd-id="98">重新生成详情页</button></form>
+  <details class="mt-2" data-sd-id="99"><summary class="cursor-pointer text-[13px] font-semibold text-muted" data-sd-id="100">高级：原始 JSON（一般不用改）</summary><label class="mt-1 block text-[13px] font-normal" data-sd-id="101"><input type="checkbox" name="rc_raw_mode" form="edit-form" class="mr-1.5 h-auto w-auto" data-sd-id="102">使用下面的 JSON 覆盖上方可视化编辑</label><textarea name="rich_content" form="edit-form" rows="6" class="mt-1 w-full rounded-lg border border-line px-3 py-[9px] text-[14px]" data-sd-id="103">{"content":[]}</textarea></details>
+</section>
+
+<section class="rounded-xl border border-line bg-white p-5" aria-label="颜色变体" data-sd-id="104">
+  <h2 class="mb-1 mt-0 text-[17px] font-bold tracking-tight" data-sd-id="105">颜色变体（29 组）</h2>
+  <p class="mb-2.5 mt-0 text-[13px] text-muted" data-sd-id="106">上架时自动拆分为子 SKU 并合并到同一商品卡；✓ 已匹配 Ozon 颜色词典，未匹配的以自填文本提交。</p>
+  <div id="variant-grid" class="grid grid-cols-1 gap-2 sm:grid-cols-2" data-sd-id="107"></div>
+</section>
+</div>
+</div>
+
+<section class="mt-5 rounded-xl border border-line bg-white p-5" aria-label="图片前后对比" data-sd-id="108">
+  <div class="mb-1.5 flex flex-wrap items-center justify-between gap-3" data-sd-id="109">
+    <div data-sd-id="110"><h2 class="mb-1 mt-0 text-[17px] font-bold tracking-tight" data-sd-id="111">图片前后对比（31 张）</h2><p class="m-0 text-[13px] text-muted" data-sd-id="112">勾选「用于上架」的图片会随商品发布；可展开「自定义重生成」指定修改要求。</p></div>
+    <form method="post" action="/products/2/infographic" data-sd-id="113"><button type="submit" class="min-h-10 rounded-lg border border-line bg-white px-[18px] py-2 text-[14px] font-semibold hover:border-primary hover:text-primary" data-sd-id="114">生成首图信息图</button></form>
+  </div>
+  <div id="image-grid" class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4" data-sd-id="115"></div>
+</section>
+
+<section class="mt-5 rounded-xl border border-line bg-white p-5" aria-label="发布前检查" data-sd-id="116">
+  <h2 class="mb-2 mt-0 text-[17px] font-bold tracking-tight" data-sd-id="117">发布前检查</h2>
+  <div class="flex items-start gap-2 text-[13px]" data-sd-id="118"><span class="mt-[3px] inline-flex h-4 w-4 flex-none items-center justify-center rounded-full bg-success text-[10px] font-bold text-white" data-sd-id="119">✓</span><span data-sd-id="120">全部检查通过</span></div>
+</section>
+
+<div class="sticky bottom-0 z-20 mt-5 flex flex-wrap items-center gap-2.5 rounded-xl border border-line bg-white px-4 py-3" data-sd-id="121">
+  <form method="post" action="/products/2/approve" data-sd-id="122"><button type="submit" class="min-h-10 rounded-lg border border-cta bg-cta px-[18px] py-2 text-[14px] font-semibold text-white hover:bg-cta-dark" data-sd-id="123">提交上架</button></form>
+  <form method="post" action="/products/2/regenerate" data-sd-id="124"><button type="submit" class="min-h-10 rounded-lg border border-line bg-white px-[18px] py-2 text-[14px] font-semibold text-ink hover:border-primary hover:text-primary" data-sd-id="125">重新生成</button></form>
+  <form method="post" action="/products/2/delete" data-sd-id="126"><button type="submit" class="min-h-10 rounded-lg border border-line bg-white px-[18px] py-2 text-[14px] font-semibold text-danger hover:border-danger" data-sd-id="127">删除商品</button></form>
+  <span class="text-[13px] text-muted" data-sd-id="128">提交前请确认译文、价格、类目与必填属性无误</span>
+</div>
+</main>
+</div>
+<script>
+const rich=[['Комфорт каждый день','Мягкий силикон приятно прилегает к коже и подходит для длительного ношения.'],['Надёжная фиксация','Прочная застёжка удерживает часы во время тренировок и прогулок.'],['Защита от влаги','Материал устойчив к поту и воде, легко очищается после использования.'],['Множество цветов','Выберите оттенок, который подходит вашему стилю и настроению.']];
+document.getElementById('rich-blocks').innerHTML=rich.map((x,i)=>`<div class="mb-2.5 flex items-start gap-3 rounded-lg border border-line bg-well p-2.5"><img src="https://placehold.co/168x168/f8f8fc/6366f1?text=${i+1}" alt="详情图 ${i+1}" class="h-[84px] w-[84px] flex-none rounded-md bg-white object-cover"><div class="min-w-0 flex-1"><label for="rc-title-${i+1}" class="block text-[13px] font-semibold">标题</label><input id="rc-title-${i+1}" name="rc_title_${i}" value="${x[0]}" form="edit-form" class="mb-2 mt-0.5 w-full rounded-lg border border-line bg-white px-3 py-[9px] text-[14px]"><label for="rc-text-${i+1}" class="block text-[13px] font-semibold">文字</label><textarea id="rc-text-${i+1}" name="rc_text_${i}" rows="3" form="edit-form" class="mb-2 mt-0.5 w-full rounded-lg border border-line bg-white px-3 py-[9px] text-[14px]">${x[1]}</textarea></div></div>`).join('');
+const colors=[['Чёрный','黑色'],['Белый','白色'],['Розовый','粉色'],['Синий','蓝色'],['Красный','红色'],['Серый','灰色'],['Зелёный','绿色'],['Фиолетовый','紫色'],['Оранжевый','橙色'],['Бежевый','米色'],['Тёмно-синий','深蓝'],['Мятный','薄荷绿'],['Жёлтый','黄色'],['Коричневый','棕色'],['Бордовый','酒红'],['Голубой','天蓝'],['Серебристый','银色'],['Розовое золото','玫瑰金'],['Хаки','卡其色'],['Лавандовый','薰衣草紫'],['Молочный','乳白'],['Графитовый','石墨灰'],['Лаймовый','荧光绿'],['Коралловый','珊瑚红'],['Тёмно-зелёный','墨绿色'],['Сиреневый','浅紫'],['Песочный','沙色'],['Малиновый','玫红'],['Разноцветный','彩色']];
+document.getElementById('variant-grid').innerHTML=colors.map((c,i)=>`<div class="flex items-center gap-2 rounded-lg border border-line bg-well px-2 py-1.5"><img src="https://placehold.co/76x76/${['1e1b4b','ffffff','fbcfe8','6366f1','dc2626','9ca3af','059669','a78bfa','fb923c','f5f5dc'][i%10]}/6b7280?text=" alt="${c[1]}色卡" class="h-[38px] w-[38px] flex-none rounded-md border border-line bg-white object-cover"><div class="min-w-0"><div class="break-words text-[13px] font-semibold leading-[1.3]">${c[0]}</div><div class="text-[12px] text-muted">${c[1]}</div><div class="mt-px text-[11px] text-muted">75.0 CNY · <span class="${i%6===0?'text-warning':'text-success'}">${i%6===0?'文本':'✓ 词典'}</span>${i%4===0?' · 2 规格':''}</div></div></div>`).join('');
+const imageGrid=document.getElementById('image-grid');
+imageGrid.innerHTML=Array.from({length:31},(_,i)=>{const n=i+1,kind=i===0?'主图':i>26?'色卡':'详情图';return `<article class="rounded-lg border border-line bg-white p-2.5 transition-colors duration-[180ms] hover:border-primary"><div class="mb-1.5 flex flex-wrap items-center gap-1.5"><span class="inline-block rounded-full bg-[#eef0f4] px-2.5 py-0.5 text-[12px] font-semibold text-muted">${kind}</span><span class="text-[13px] text-muted">#${n} · uploaded</span></div><div class="grid grid-cols-2 gap-1.5"><figure class="m-0 min-w-0"><img src="https://placehold.co/240x208/ffffff/6366f1?text=Source+${n}" alt="源图 #${n}" class="h-[104px] w-full rounded object-contain"><figcaption class="mt-0.5 text-center text-[11px] text-muted">源图</figcaption></figure><figure class="m-0 min-w-0"><img src="https://placehold.co/240x208/ffffff/4f46e5?text=RU+${n}" alt="译文图 #${n}" class="h-[104px] w-full rounded object-contain"><figcaption class="mt-0.5 text-center text-[11px] text-muted">译文图</figcaption></figure></div><label class="mt-1.5 flex items-center gap-1.5 text-[13px] font-normal"><input type="checkbox" name="sel_${n}" value="1" form="edit-form" checked class="m-0 h-auto w-auto">用于上架</label><details class="mt-1.5"><summary class="cursor-pointer text-[12px] font-semibold text-muted">自定义重生成</summary><form method="post" action="/products/2/images/${n}/regenerate" class="mt-1.5 flex items-center gap-1.5"><input type="text" name="prompt_override" placeholder="留空=自动翻译" class="min-h-8 min-w-0 flex-1 rounded-lg border border-line px-2 py-1 text-[12px]"><button type="submit" class="min-h-8 whitespace-nowrap rounded-lg border border-line bg-white px-2.5 text-[12px] font-semibold">重生成</button></form></details></article>`}).join('');
+</script>
+
+</body></html>

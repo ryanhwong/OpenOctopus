@@ -1,0 +1,232 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>人审 #2 - OpenOctopus</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={theme:{extend:{fontFamily:{sans:['Fira Sans','system-ui','-apple-system','PingFang SC','Microsoft YaHei','sans-serif']},colors:{page:'#f5f3ff',ink:'#1e1b4b',muted:'#6b7280',line:'#e5e7eb',primary:'#6366f1','primary-dark':'#4f46e5','primary-soft':'#e0e7ff',well:'#f8f8fc',success:'#059669','success-bg':'#d1fae5',warning:'#b45309','warning-bg':'#fef3c7',danger:'#dc2626','danger-bg':'#fee2e2',cta:'#10b981','cta-dark':'#059669'}}}}
+</script>
+</head>
+<body>
+<div class="flex h-screen flex-col overflow-hidden bg-page font-sans text-[13px] leading-[1.5] text-ink">
+<header class="flex-none sticky top-0 z-40 flex min-h-[48px] items-center gap-4 border-b border-line bg-white px-4 py-2">
+  <a id="brand-home-link" href="/" class="whitespace-nowrap text-[16px] font-bold text-primary no-underline">OpenOctopus<span class="ml-2 text-[11px] font-normal text-muted">1688 → Ozon 搬运工作台</span></a>
+  <nav class="flex gap-1" aria-label="主导航">
+    <a id="nav-products-link" href="/" class="inline-flex min-h-8 items-center justify-center rounded-md border border-line bg-white px-3 py-1 text-[13px] font-semibold text-ink no-underline transition-colors duration-[180ms] hover:border-primary hover:text-primary">商品</a>
+    <a id="nav-dashboard-link" href="/dashboard" class="inline-flex min-h-8 items-center justify-center rounded-md border border-line bg-white px-3 py-1 text-[13px] font-semibold text-ink no-underline transition-colors duration-[180ms] hover:border-primary hover:text-primary">看板</a>
+    <a id="nav-promotions-link" href="/promotions" class="inline-flex min-h-8 items-center justify-center rounded-md border border-line bg-white px-3 py-1 text-[13px] font-semibold text-ink no-underline transition-colors duration-[180ms] hover:border-primary hover:text-primary">促销</a>
+    <a id="nav-jobs-link" href="/jobs" class="inline-flex min-h-8 items-center justify-center rounded-md border border-line bg-white px-3 py-1 text-[13px] font-semibold text-ink no-underline transition-colors duration-[180ms] hover:border-primary hover:text-primary">任务</a>
+  </nav>
+  <nav class="ml-auto"><a id="back-dashboard-link" href="/" class="inline-flex min-h-8 items-center justify-center rounded-md border border-line bg-white px-3 py-1 text-[13px] font-semibold text-ink no-underline transition-colors duration-[180ms] hover:border-primary hover:text-primary">← 返回看板</a></nav>
+</header>
+
+<div class="flex flex-1 overflow-hidden">
+  <aside class="w-[200px] flex-none overflow-y-auto border-r border-line bg-white p-3">
+    <div class="mb-2 px-2 text-[11px] font-bold text-muted">任务导航</div>
+    <nav class="flex flex-col gap-0.5">
+      <a href="#sec-draft" class="flex items-center gap-2 rounded px-2 py-1.5 text-[13px] text-ink no-underline hover:bg-well"><span class="h-1.5 w-1.5 flex-none rounded-full bg-success"></span>文案与标题</a>
+      <a href="#sec-price" class="flex items-center gap-2 rounded px-2 py-1.5 text-[13px] text-ink no-underline hover:bg-well"><span class="h-1.5 w-1.5 flex-none rounded-full bg-success"></span>价格与库存</a>
+      <a href="#sec-rich" class="flex items-center gap-2 rounded px-2 py-1.5 text-[13px] text-ink no-underline hover:bg-well"><span class="h-1.5 w-1.5 flex-none rounded-full bg-warning"></span>视频与详情页</a>
+      <a href="#sec-variants" class="flex items-center gap-2 rounded px-2 py-1.5 text-[13px] text-ink no-underline hover:bg-well"><span class="h-1.5 w-1.5 flex-none rounded-full bg-success"></span>颜色变体</a>
+      <a href="#sec-images" class="flex items-center gap-2 rounded px-2 py-1.5 text-[13px] text-ink no-underline hover:bg-well"><span class="h-1.5 w-1.5 flex-none rounded-full bg-primary"></span>图片前后对比</a>
+      <a href="#sec-check" class="flex items-center gap-2 rounded px-2 py-1.5 text-[13px] text-ink no-underline hover:bg-well"><span class="h-1.5 w-1.5 flex-none rounded-full bg-success"></span>发布前检查</a>
+    </nav>
+  </aside>
+
+  <main class="relative flex-1 overflow-y-auto bg-page p-3">
+    <div class="mx-auto max-w-[1280px] pb-16">
+      
+      <section class="mb-3 rounded-lg border border-line bg-white p-3">
+        <div class="flex items-center gap-3">
+          <img src="https://placehold.co/128x128/f8f8fc/6366f1?text=Watch" alt="主图缩略图" class="h-12 w-12 flex-none rounded-md bg-primary-soft object-cover">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <h1 class="m-0 text-[18px] font-bold tracking-tight">商品 #2</h1>
+              <span class="rounded-full bg-success-bg px-2 py-0.5 text-[11px] font-semibold text-success">listed</span>
+            </div>
+            <div class="mt-0.5 flex flex-wrap items-center gap-x-3 text-[12px] text-muted">
+              <span>来源：<a id="product-source-link" href="https://detail.1688.com/offer/785464166129.html" class="break-all text-primary">https://detail.1688.com/offer/785464166129.html</a></span>
+              <span class="h-3 w-px bg-line"></span>
+              <span>上架价：<strong class="text-[13px] text-ink">75.0 CNY</strong></span>
+              <span class="h-3 w-px bg-line"></span>
+              <span class="font-semibold text-ink">Комфорт и надёжная фиксация смарт-часов</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
+        <form method="post" action="/products/2/edit" id="edit-form" class="flex flex-col gap-3">
+          
+          <section id="sec-draft" class="rounded-lg border border-line bg-white p-3" aria-label="文案与标题">
+            <h2 class="mb-2 mt-0 text-[15px] font-bold tracking-tight">文案与标题</h2>
+            <label class="mb-1 block text-[12px] font-semibold">标题候选</label>
+            <div class="mb-2 flex flex-col gap-1" role="radiogroup" aria-label="标题候选">
+              <label class="flex cursor-pointer items-start gap-1.5 rounded border border-line bg-white px-2 py-1.5 transition-colors hover:border-primary">
+                <input type="radio" name="title_pick" value="1" form="edit-form" checked="" class="mt-0.5 h-auto w-auto flex-none">
+                <span class="min-w-0 flex items-center gap-1.5">
+                  <span class="flex-none rounded-full bg-primary-soft px-1.5 text-[10px] font-bold text-primary-dark">风格</span>
+                  <span class="block truncate text-[12px]">Комфорт и надёжная фиксация смарт-часов</span>
+                </span>
+              </label>
+              <label class="flex cursor-pointer items-start gap-1.5 rounded border border-line bg-white px-2 py-1.5 transition-colors hover:border-primary">
+                <input type="radio" name="title_pick" value="2" form="edit-form" class="mt-0.5 h-auto w-auto flex-none">
+                <span class="min-w-0 flex items-center gap-1.5">
+                  <span class="flex-none rounded-full bg-primary-soft px-1.5 text-[10px] font-bold text-primary-dark">关键词</span>
+                  <span class="block truncate text-[12px]">Ремешок для смарт-часов, мягкий силиконовый браслет</span>
+                </span>
+              </label>
+              <label class="flex cursor-pointer items-start gap-1.5 rounded border border-line bg-white px-2 py-1.5 transition-colors hover:border-primary">
+                <input type="radio" name="title_pick" value="3" form="edit-form" class="mt-0.5 h-auto w-auto flex-none">
+                <span class="min-w-0 flex items-center gap-1.5">
+                  <span class="flex-none rounded-full bg-primary-soft px-1.5 text-[10px] font-bold text-primary-dark">痛点</span>
+                  <span class="block truncate text-[12px]">Удобный ремешок без натирания для умных часов</span>
+                </span>
+              </label>
+            </div>
+            <div class="mb-2 flex items-center gap-2">
+              <button formmethod="post" formaction="/products/2/titles/regenerate" class="min-h-7 rounded border border-line bg-white px-2 py-0.5 text-[12px] font-semibold hover:border-primary hover:text-primary">重新生成</button>
+              <button formmethod="post" formaction="/products/2/keywords/fetch" class="min-h-7 rounded border border-line bg-white px-2 py-0.5 text-[12px] font-semibold hover:border-primary hover:text-primary">抓取搜索词</button>
+              <span class="truncate text-[11px] text-muted">已抓: ремешок для часов · силиконовый браслет...</span>
+            </div>
+
+            <label for="f-title" class="mb-1 mt-2 block text-[12px] font-semibold">标题 (RU) <span class="ml-2 font-normal text-muted">原文：适用于智能手表的舒适硅胶运动表带</span></label>
+            <div class="relative">
+              <input id="f-title" name="title_ru" type="text" value="Комфорт и надёжная фиксация смарт-часов" class="min-h-8 w-full rounded border border-line bg-white px-2 py-1 pr-16 text-[13px] outline-primary">
+              <span id="title-count" class="absolute right-2 top-1.5 text-[11px] text-muted">45/150</span>
+            </div>
+
+            <div class="mb-1 mt-2 flex items-center justify-between">
+              <label for="f-desc" class="m-0 block text-[12px] font-semibold">描述 (RU)</label>
+              <button type="button" class="min-h-6 rounded border border-line bg-white px-2 text-[11px] font-semibold hover:border-primary hover:text-primary">AI 优化描述</button>
+            </div>
+            <textarea id="f-desc" name="description_ru" rows="4" class="w-full rounded border border-line bg-white px-2 py-1.5 text-[13px] outline-primary">Мягкий силиконовый ремешок создан для комфортного повседневного ношения смарт-часов. Гибкий материал приятно прилегает к коже, устойчив к влаге и легко очищается.</textarea>
+            <details class="mt-1"><summary class="cursor-pointer text-[11px] font-semibold text-muted">查看中文原文</summary><div class="mt-1 rounded bg-well px-2 py-1.5 text-[12px]">柔软硅胶表带适合日常佩戴，贴合手腕，防水耐汗且易于清洁。牢固表扣可在运动和户外活动中稳定固定手表，多档调节设计适配不同腕围。</div></details>
+          </section>
+
+          <section id="sec-price" class="rounded-lg border border-line bg-white p-3" aria-label="价格与库存">
+            <h2 class="mb-2 mt-0 text-[15px] font-bold tracking-tight">价格与库存</h2>
+            <label for="f-price" class="mb-1 block text-[12px] font-semibold">价格 (CNY)</label>
+            <input id="f-price" name="price_rub" type="text" value="75.0" class="min-h-8 w-full rounded border border-line bg-white px-2 py-1 text-[13px] outline-primary">
+            <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 rounded border border-line bg-well px-2 py-1.5 text-[11px] text-muted">
+              <span>成本 <strong class="text-[12px] text-ink">16.8</strong> (含物流 6.0)</span>
+              <span>汇率 <strong class="text-[12px] text-ink">12.80</strong></span>
+              <span>佣金 18%</span>
+              <span class="h-3 w-px bg-line"></span>
+              <span>保本 <strong class="text-[12px] text-ink">35.2</strong></span>
+              <span>建议 <strong class="text-[12px] text-ink">75.0</strong> (利30%) <button type="button" class="ml-1 rounded border border-line bg-white px-1.5 text-[11px] hover:border-primary hover:text-primary">填入</button></span>
+              <span class="h-3 w-px bg-line"></span>
+              <span>利润率 <strong class="text-[12px] text-success">36.4%</strong></span>
+              <span>上次 75.0</span>
+            </div>
+
+            <div class="mt-2 flex gap-3">
+              <div class="flex-1">
+                <label for="f-stock" class="mb-1 block text-[12px] font-semibold">库存</label>
+                <input id="f-stock" name="stock" type="number" value="100" class="min-h-8 w-full rounded border border-line bg-white px-2 py-1 text-[13px] outline-primary">
+              </div>
+              <div class="flex-[2]">
+                <label class="mb-1 block text-[12px] font-semibold">尺寸重量 (长×宽×高 mm, 重 g)</label>
+                <div class="flex gap-1">
+                  <input name="length_mm" type="text" placeholder="长" value="210" class="min-h-8 min-w-0 flex-1 rounded border border-line px-2 py-1 text-[13px] text-center">
+                  <input name="width_mm" type="text" placeholder="宽" value="22" class="min-h-8 min-w-0 flex-1 rounded border border-line px-2 py-1 text-[13px] text-center">
+                  <input name="height_mm" type="text" placeholder="高" value="8" class="min-h-8 min-w-0 flex-1 rounded border border-line px-2 py-1 text-[13px] text-center">
+                  <input name="weight_g" type="text" placeholder="重" value="28" class="min-h-8 min-w-0 flex-1 rounded border border-line px-2 py-1 text-[13px] text-center">
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-2 flex gap-3">
+              <div class="flex-1">
+                <label for="f-cat" class="mb-1 block text-[12px] font-semibold">Ozon 叶子类型</label>
+                <input id="f-cat" name="ozon_category_id" type="text" value="12345:67890" class="min-h-8 w-full rounded border border-line px-2 py-1 text-[13px]">
+              </div>
+              <div class="flex-1">
+                <label for="f-attrs" class="mb-1 block text-[12px] font-semibold">类目属性 JSON</label>
+                <input id="f-attrs" name="attributes_json" type="text" value='{"brand":"No name","material":"Силикон"}' class="min-h-8 w-full rounded border border-line px-2 py-1 font-mono text-[11px]">
+              </div>
+            </div>
+          </section>
+        </form>
+
+        <div class="flex flex-col gap-3">
+          <section id="sec-rich" class="rounded-lg border border-line bg-white p-3" aria-label="视频与详情页">
+            <div class="mb-2 flex items-center justify-between">
+              <h2 class="m-0 text-[15px] font-bold tracking-tight">视频与详情页</h2>
+              <form method="post" action="/products/2/content/video/regenerate">
+                <button type="submit" class="min-h-7 rounded border border-line bg-white px-2 py-0.5 text-[11px] font-semibold hover:border-primary hover:text-primary">重生成视频</button>
+              </form>
+            </div>
+            <div class="flex gap-3">
+              <div class="aspect-video w-32 flex-none overflow-hidden rounded bg-black">
+                <img src="https://placehold.co/960x540/0f172a/e2e8f0?text=Smart+Watch" alt="商品视频封面" class="h-full w-full object-contain">
+              </div>
+              <div class="min-w-0 flex-1">
+                <div id="rich-blocks" class="flex flex-col gap-1.5 overflow-y-auto max-h-[200px] pr-1"></div>
+              </div>
+            </div>
+            <div class="mt-2 flex items-center justify-between border-t border-line pt-2">
+               <form method="post" action="/products/2/content/rich/regenerate">
+                 <button type="submit" class="min-h-7 rounded border border-line bg-white px-2 py-0.5 text-[11px] font-semibold hover:border-primary hover:text-primary">重生成详情页</button>
+               </form>
+               <details class="relative">
+                 <summary class="cursor-pointer text-[11px] font-semibold text-muted">高级 JSON</summary>
+                 <div class="absolute bottom-full right-0 z-10 mb-1 w-64 rounded border border-line bg-white p-2 shadow-lg">
+                   <textarea name="rich_content" form="edit-form" rows="4" class="w-full rounded border border-line px-2 py-1 text-[11px]">{"content":[]}</textarea>
+                 </div>
+               </details>
+            </div>
+          </section>
+
+          <section id="sec-variants" class="rounded-lg border border-line bg-white p-3" aria-label="颜色变体">
+            <h2 class="mb-1 mt-0 text-[15px] font-bold tracking-tight">颜色变体 <span class="text-muted font-normal text-[12px]">(29 组)</span></h2>
+            <div id="variant-grid" class="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4"></div>
+          </section>
+        </div>
+      </div>
+
+      <section id="sec-images" class="mt-3 rounded-lg border border-line bg-white p-3" aria-label="图片前后对比">
+        <div class="mb-2 flex items-center justify-between">
+          <h2 class="m-0 text-[15px] font-bold tracking-tight">图片前后对比 <span class="text-muted font-normal text-[12px]">(31 张)</span></h2>
+          <form method="post" action="/products/2/infographic">
+            <button type="submit" class="min-h-7 rounded border border-line bg-white px-2 py-0.5 text-[12px] font-semibold hover:border-primary hover:text-primary">生成首图信息图</button>
+          </form>
+        </div>
+        <div id="image-grid" class="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8"></div>
+      </section>
+
+      <section id="sec-check" class="mt-3 rounded-lg border border-line bg-white p-3" aria-label="发布前检查">
+        <h2 class="mb-2 mt-0 text-[15px] font-bold tracking-tight">发布前检查</h2>
+        <div class="flex items-center gap-1.5 text-[12px]"><span class="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-success text-[8px] font-bold text-white">✓</span><span>全部检查通过</span></div>
+      </section>
+
+    </div>
+    
+    <div class="fixed bottom-0 right-0 z-20 flex min-h-[56px] w-[calc(100%-200px)] items-center gap-3 border-t border-line bg-white px-4 py-2 shadow-[0_-1px_2px_rgba(30,27,75,0.05)]">
+      <button type="submit" form="edit-form" class="min-h-9 rounded-md border border-primary bg-primary px-4 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-primary-dark">保存草稿</button>
+      <form method="post" action="/products/2/approve">
+        <button type="submit" class="min-h-9 rounded-md border border-cta bg-cta px-4 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-cta-dark">提交上架</button>
+      </form>
+      <form method="post" action="/products/2/regenerate">
+        <button type="submit" class="min-h-9 rounded-md border border-line bg-white px-4 py-1.5 text-[13px] font-semibold text-ink transition-colors hover:border-primary hover:text-primary">重新生成</button>
+      </form>
+      <form method="post" action="/products/2/delete" class="ml-auto">
+        <button type="submit" class="min-h-9 rounded-md border border-line bg-white px-4 py-1.5 text-[13px] font-semibold text-danger transition-colors hover:border-danger">删除商品</button>
+      </form>
+    </div>
+  </main>
+</div>
+</div>
+
+<script>
+const rich=[['Комфорт каждый день','Мягкий силикон приятно прилегает к коже и подходит для длительного ношения.'],['Надёжная фиксация','Прочная застёжка удерживает часы во время тренировок и прогулок.']];
+document.getElementById('rich-blocks').innerHTML=rich.map((x,i)=>`<div class="flex flex-col gap-1 rounded bg-well p-1.5"><input name="rc_title_${i}" value="${x[0]}" form="edit-form" class="w-full rounded border border-line px-1.5 py-0.5 text-[11px] font-semibold"><textarea name="rc_text_${i}" rows="2" form="edit-form" class="w-full rounded border border-line px-1.5 py-0.5 text-[11px]">${x[1]}</textarea></div>`).join('');
+
+const colors=[['Чёрный','黑色'],['Белый','白色'],['Розовый','粉色'],['Синий','蓝色'],['Красный','红色'],['Серый','灰色'],['Зелёный','绿色'],['Фиолетовый','紫色'],['Оранжевый','橙色'],['Бежевый','米色']];
+document.getElementById('variant-grid').innerHTML=colors.map((c,i)=>`<div class="flex items-center gap-1.5 rounded bg-well px-1.5 py-1"><img src="https://placehold.co/64x64/${['1e1b4b','ffffff','fbcfe8','6366f1','dc2626','9ca3af','059669','a78bfa','fb923c','f5f5dc'][i%10]}/6b7280?text=" alt="${c[1]}色卡" class="h-[32px] w-[32px] flex-none rounded border border-line bg-white object-cover"><div class="min-w-0 flex-1"><div class="truncate text-[12px] font-semibold leading-tight">${c[0]}</div><div class="mt-0.5 text-[10px] text-muted">75.0 · <span class="${i%6===0?'text-warning':'text-success'}">${i%6===0?'文本':'✓ 词典'}</span></div></div></div>`).join('');
+
+const imageGrid=document.getElementById('image-grid');
+imageGrid.innerHTML=Array.from({length:31},(_,i)=>{const n=i+1,kind=i===0?'主图':i>26?'色卡':'详情图';return `<div class="flex flex-col overflow-hidden rounded border border-line bg-white"><div class="relative aspect-square"><img src="https://placehold.co/240x240/ffffff/4f46e5?text=RU+${n}" alt="译文图 #${n}" class="h-full w-full object-cover"><span class="absolute left-1 top-1 rounded bg-white/90 px-1 py-0.5 text-[9px] font-bold text-ink shadow-sm backdrop-blur">${kind}</span><label class="absolute right-1 top-1 flex cursor-pointer items-center justify-center rounded bg-white/90 p-0.5 shadow-sm backdrop-blur"><input type="checkbox" name="sel_${n}" value="1" form="edit-form" checked class="m-0 block h-3 w-3"></label></div><details class="bg-well p-1 text-[11px]"><summary class="cursor-pointer text-center font-semibold text-muted hover:text-primary">对比 & 重生成</summary><div class="mt-1 flex gap-1"><img src="https://placehold.co/120x120/ffffff/6366f1?text=SRC" class="h-10 w-1/2 rounded border border-line object-cover"><img src="https://placehold.co/120x120/ffffff/4f46e5?text=RU" class="h-10 w-1/2 rounded border border-line object-cover"></div><input type="text" placeholder="重生成指令" class="mt-1 w-full rounded border border-line px-1.5 py-0.5 text-[10px]"></details></div>`}).join('');
+</script>
+
+</body></html>

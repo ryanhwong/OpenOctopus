@@ -1,0 +1,14 @@
+DIRECTION B — STEPPED WORKBENCH (task flow, one step at a time, persistent status rail)
+
+Restructure this human-review page as a step-by-step workbench. Keep the exact same indigo/emerald palette, the same Chinese labels, the same fields, the same buttons and the same functionality — change only information architecture and hierarchy.
+
+Layout changes:
+- Add a horizontal STEP FLOW directly under the page hero: five steps — 1 文案与标题 → 2 价格与库存 → 3 视频与详情页 → 4 颜色变体 → 5 图片与发布前检查. Render the active step filled indigo, completed steps emerald-tinted with a check, future steps gray. Show each step's completion state at a glance.
+- The main area shows ONE step at a time. The active step is expanded with its full content; every non-active step collapses to a single summary row showing its outcome (e.g. "标题已定 · 描述 480 字 · 候选 4 个" or "价格 75.0 CNY · 利润率 62% · 库存 100").
+- Add a PERSISTENT RIGHT RAIL (about 300px, always visible, sticky) that never scrolls away. It contains, in order: the pre-publish checklist (发布前检查) with pass/warn/fail dots, a compact price/margin summary (成本 / 保本价 / 建议价 / 当前利润率), and the primary 提交上架 button with the hint text — so the reviewer can always see what is blocking publication and can publish from anywhere.
+- Move 图片前后对比 into step 5 as a wide grid inside the main column, and keep 颜色变体 in step 4.
+- Each expanded step leads with exactly ONE obvious primary action button (e.g. 保存草稿 in step 1, 生成视频 in step 3, 重新生成详情页 in step 3); secondary and destructive actions recede into a quieter outline treatment.
+- Add 上一步 / 下一步 controls at the bottom of the main column, and a progress hint such as "第 1 / 5 步".
+
+Do not remove any field, button, label or capability. Do not change the color palette, the font stack, or the status-color semantics.
+Use ONLY the fonts, colors, spacing, and component styles defined in the design system. Do not introduce any fonts, colors, or visual styles not in the design system.

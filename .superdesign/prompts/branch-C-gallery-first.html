@@ -1,0 +1,215 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>人审 #2 - OpenOctopus</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={theme:{extend:{fontFamily:{sans:['Fira Sans','system-ui','-apple-system','PingFang SC','Microsoft YaHei','sans-serif']},colors:{page:'#f5f3ff',ink:'#1e1b4b',muted:'#6b7280',line:'#e5e7eb',primary:'#6366f1','primary-dark':'#4f46e5','primary-soft':'#e0e7ff',well:'#f8f8fc',success:'#059669','success-bg':'#d1fae5',warning:'#b45309','warning-bg':'#fef3c7',danger:'#dc2626','danger-bg':'#fee2e2',cta:'#10b981','cta-dark':'#059669'}}}}
+</script>
+<style>
+  /* Hide scrollbar for cleaner look */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
+</head>
+<body>
+<div class="min-h-screen bg-page font-sans text-[15px] leading-[1.6] text-ink">
+<header class="sticky top-0 z-40 flex min-h-[56px] items-center gap-4 border-b border-line bg-white px-6 py-3">
+  <a id="brand-home-link" href="/" class="whitespace-nowrap text-[18px] font-bold text-primary no-underline">OpenOctopus<span class="ml-2 text-[12px] font-normal text-muted">1688 → Ozon 搬运工作台</span></a>
+  <nav class="flex gap-1.5" aria-label="主导航">
+    <a id="nav-products-link" href="/" class="inline-flex min-h-10 items-center justify-center rounded-lg border border-line bg-white px-[18px] py-2 text-[14px] font-semibold text-ink no-underline transition-colors duration-[180ms] hover:border-primary hover:text-primary">商品</a>
+    <a id="nav-dashboard-link" href="/dashboard" class="inline-flex min-h-10 items-center justify-center rounded-lg border border-line bg-white px-[18px] py-2 text-[14px] font-semibold text-ink no-underline transition-colors duration-[180ms] hover:border-primary hover:text-primary">看板</a>
+    <a id="nav-promotions-link" href="/promotions" class="inline-flex min-h-10 items-center justify-center rounded-lg border border-line bg-white px-[18px] py-2 text-[14px] font-semibold text-ink no-underline transition-colors duration-[180ms] hover:border-primary hover:text-primary">促销</a>
+    <a id="nav-jobs-link" href="/jobs" class="inline-flex min-h-10 items-center justify-center rounded-lg border border-line bg-white px-[18px] py-2 text-[14px] font-semibold text-ink no-underline transition-colors duration-[180ms] hover:border-primary hover:text-primary">任务</a>
+  </nav>
+  <nav class="ml-auto"><a id="back-dashboard-link" href="/" class="inline-flex min-h-10 items-center justify-center rounded-lg border border-line bg-white px-[18px] py-2 text-[14px] font-semibold text-ink no-underline transition-colors duration-[180ms] hover:border-primary hover:text-primary">← 返回看板</a></nav>
+</header>
+
+<main class="mx-auto max-w-[1280px] px-6 pb-24 pt-6">
+
+<!-- Hero Section -->
+<section class="mb-3 rounded-xl border border-line bg-white p-5">
+  <div class="flex items-center gap-3.5">
+    <img src="https://placehold.co/128x128/f8f8fc/6366f1?text=Watch" alt="主图缩略图" class="h-16 w-16 flex-none rounded-lg bg-primary-soft object-cover">
+    <div class="min-w-0">
+      <h1 class="mb-1 text-[22px] font-bold tracking-tight">商品 #2 <span class="inline-block whitespace-nowrap rounded-full bg-success-bg px-2.5 py-0.5 align-middle text-[12px] font-semibold text-success">listed</span></h1>
+      <p class="m-0 text-[13px] text-muted">来源：<a id="product-source-link" href="https://detail.1688.com/offer/785464166129.html" class="break-all text-primary">https://detail.1688.com/offer/785464166129.html</a> ｜ 上架价：<strong class="text-ink">75.0 CNY</strong></p>
+      <p class="mb-0 mt-1.5 font-semibold">Комфорт и надёжная фиксация смарт-часов</p>
+    </div>
+  </div>
+</section>
+
+<!-- Status Strip (Pre-publish checks) -->
+<section class="mb-5 flex items-center gap-3 overflow-x-auto rounded-xl border border-line bg-white px-4 py-3">
+  <span class="flex-none text-[13px] font-bold">发布前检查</span>
+  <div class="flex items-center gap-2 text-[13px]">
+    <span class="inline-flex items-center gap-1.5 rounded-full bg-success-bg px-2.5 py-0.5 font-semibold text-success">
+      <span class="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-success text-[9px] text-white">✓</span> 全部检查通过
+    </span>
+    <!-- Placeholder for warn/fail if any -->
+  </div>
+</section>
+
+<!-- Collapsible Product Info -->
+<details class="group mb-5 rounded-xl border border-line bg-white">
+  <summary class="flex cursor-pointer list-none items-center justify-between p-5">
+    <div class="flex items-center gap-4">
+      <span class="text-[17px] font-bold tracking-tight">商品信息</span>
+      <span class="text-[13px] text-muted group-open:hidden">Комфорт и надёжная фиксация смарт-часов ｜ 75.0 CNY ｜ 库存 100</span>
+    </div>
+    <span class="text-muted transition-transform group-open:rotate-180">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </span>
+  </summary>
+  
+  <div class="border-t border-line px-5 pb-5 pt-4">
+    <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+      <!-- Left Col: Title & Desc -->
+      <div>
+        <label class="mt-0 block text-[13px] font-semibold">标题候选</label>
+        <div class="mb-2.5 mt-1.5 flex flex-col gap-1.5">
+          <label class="flex cursor-pointer items-start gap-2 rounded-lg border border-line bg-white px-2.5 py-2 font-normal transition-colors duration-[180ms] hover:border-primary"><input type="radio" name="title_pick" value="1" form="edit-form" checked class="mt-[3px] h-auto w-auto flex-none"><span class="min-w-0"><span class="mb-0.5 inline-block rounded-full bg-primary-soft px-2 text-[11px] font-bold text-primary-dark">风格</span><span class="block break-words text-[13px] leading-[1.4]">Комфорт и надёжная фиксация смарт-часов</span></span></label>
+        </div>
+        <div class="mb-2.5 flex flex-wrap gap-2">
+          <form method="post" action="/products/2/titles/regenerate" class="inline"><button type="submit" class="min-h-8 rounded-lg border border-line bg-white px-3 py-0.5 text-[14px] font-semibold transition-colors duration-[180ms] hover:border-primary hover:text-primary">重新生成候选</button></form>
+          <form method="post" action="/products/2/keywords/fetch" class="inline"><button type="submit" class="min-h-8 rounded-lg border border-line bg-white px-3 py-0.5 text-[14px] font-semibold transition-colors duration-[180ms] hover:border-primary hover:text-primary">抓取 Ozon 搜索词</button></form>
+        </div>
+
+        <form method="post" action="/products/2/edit" id="edit-form">
+          <label for="f-title" class="mt-1 block text-[13px] font-semibold">标题 (RU)</label>
+          <input id="f-title" name="title_ru" type="text" value="Комфорт и надёжная фиксация смарт-часов" class="mb-1 mt-1 w-full rounded-lg border border-line bg-white px-3 py-[9px] text-[14px] outline-primary">
+          <p class="mb-3 mt-[-2px] text-[13px] text-muted">原文：适用于智能手表的舒适硅胶运动表带</p>
+
+          <div class="flex items-center justify-between gap-2"><label for="f-desc" class="m-0 block text-[13px] font-semibold">描述 (RU)</label><button type="button" class="min-h-7 rounded-lg border border-line bg-white px-2.5 text-[12px] font-semibold transition-colors duration-[180ms] hover:border-primary hover:text-primary">AI 优化描述</button></div>
+          <textarea id="f-desc" name="description_ru" rows="6" class="mb-2 mt-1 w-full rounded-lg border border-line bg-white px-3 py-[9px] text-[14px] outline-primary">Мягкий силиконовый ремешок создан для комфортного повседневного ношения смарт-часов. Гибкий материал приятно прилегает к коже, устойчив к влаге и легко очищается.</textarea>
+        </form>
+      </div>
+      
+      <!-- Right Col: Price, Stock, Category -->
+      <div>
+        <label for="f-price" class="mt-0 block text-[13px] font-semibold">价格 (CNY)</label>
+        <input id="f-price" name="price_rub" type="text" value="75.0" form="edit-form" class="mb-2 mt-1 w-full rounded-lg border border-line bg-white px-3 py-[9px] text-[14px] outline-primary">
+        <div class="mb-3 rounded-lg border border-line bg-well px-2.5 py-2 text-[12px] leading-[1.8] text-muted">
+          <div>成本 <strong class="text-ink">16.8</strong> CNY（含物流 6.0） · 汇率 <strong class="text-ink">12.80</strong> · 佣金 18%</div>
+          <div>保本价 <strong class="text-ink">35.2</strong> · 建议价 <strong class="text-ink">75.0</strong> <button type="button" class="ml-1.5 min-h-[26px] rounded-lg border border-line bg-white px-2 text-[12px] font-semibold hover:border-primary hover:text-primary">填入建议价</button></div>
+        </div>
+
+        <div class="flex gap-4">
+          <div class="flex-1">
+            <label for="f-stock" class="mt-1 block text-[13px] font-semibold">库存</label>
+            <input id="f-stock" name="stock" type="number" value="100" form="edit-form" class="mb-3 mt-1 w-full rounded-lg border border-line bg-white px-3 py-[9px] text-[14px] outline-primary">
+          </div>
+          <div class="flex-[2]">
+            <label class="mt-1 block text-[13px] font-semibold">尺寸重量 (长宽高等)</label>
+            <div class="flex gap-2"><input name="length_mm" type="text" placeholder="长" value="210" form="edit-form" class="mb-3 mt-1 min-w-0 flex-1 rounded-lg border border-line px-2 py-[9px] text-[14px]"><input name="width_mm" type="text" placeholder="宽" value="22" form="edit-form" class="mb-3 mt-1 min-w-0 flex-1 rounded-lg border border-line px-2 py-[9px] text-[14px]"></div>
+          </div>
+        </div>
+
+        <label for="f-cat" class="mt-1 block text-[13px] font-semibold">Ozon 叶子类型</label>
+        <input id="f-cat" name="ozon_category_id" type="text" value="12345:67890" form="edit-form" class="mb-3 mt-1 w-full rounded-lg border border-line px-3 py-[9px] text-[14px]">
+
+        <button type="submit" form="edit-form" class="inline-flex min-h-10 items-center justify-center rounded-lg border border-primary bg-primary px-[18px] py-2 text-[14px] font-semibold text-white transition-colors duration-[180ms] hover:bg-primary-dark">保存草稿</button>
+      </div>
+    </div>
+  </div>
+</details>
+
+<!-- Three-Region Gallery Layout -->
+<div class="mb-5 flex h-[640px] gap-4">
+  
+  <!-- 1. Left Filmstrip Rail -->
+  <aside class="no-scrollbar flex w-[120px] flex-none flex-col gap-2 overflow-y-auto rounded-xl border border-line bg-white p-2" id="filmstrip">
+    <!-- JS will populate filmstrip items here -->
+  </aside>
+
+  <!-- 2. Center Stage -->
+  <section class="flex flex-1 flex-col overflow-hidden rounded-xl border border-line bg-white">
+    <div class="flex flex-1 items-center justify-center bg-well p-6">
+      <!-- Active preview -->
+      <img src="https://placehold.co/960x540/ffffff/4f46e5?text=Preview" id="stage-image" alt="Stage Preview" class="max-h-full max-w-full rounded-md object-contain drop-shadow-sm">
+    </div>
+    <!-- Caption strip -->
+    <div class="flex flex-none items-center justify-between border-t border-line bg-white p-4">
+      <div class="flex items-center gap-3">
+        <span id="stage-badge" class="inline-block rounded-full bg-primary-soft px-2.5 py-0.5 text-[12px] font-bold text-primary-dark">主图</span>
+        <span id="stage-meta" class="text-[13px] text-muted">#1 · uploaded</span>
+      </div>
+      <label class="flex items-center gap-1.5 text-[14px] font-semibold">
+        <input type="checkbox" form="edit-form" checked class="h-4 w-4 text-primary"> 用于上架
+      </label>
+    </div>
+  </section>
+
+  <!-- 3. Right Inspector Column -->
+  <aside class="flex w-[340px] flex-none flex-col overflow-hidden rounded-xl border border-line bg-white">
+    <!-- Segmented Switcher -->
+    <div class="flex flex-none gap-1 border-b border-line p-2">
+      <button class="flex-1 rounded-md bg-primary-soft py-1.5 text-[13px] font-semibold text-primary-dark">图片</button>
+      <button class="flex-1 rounded-md py-1.5 text-[13px] font-semibold text-muted transition-colors hover:bg-well hover:text-ink">视频</button>
+      <button class="flex-1 rounded-md py-1.5 text-[13px] font-semibold text-muted transition-colors hover:bg-well hover:text-ink">变体</button>
+      <button class="flex-1 rounded-md py-1.5 text-[13px] font-semibold text-muted transition-colors hover:bg-well hover:text-ink">详情页</button>
+    </div>
+    
+    <!-- Inspector Content (Image State) -->
+    <div class="flex-1 overflow-y-auto p-4" id="inspector-content">
+      <div class="mb-4 grid grid-cols-2 gap-2">
+        <figure class="m-0">
+          <img src="https://placehold.co/240x208/ffffff/6366f1?text=Source" class="h-[104px] w-full rounded border border-line bg-white object-contain">
+          <figcaption class="mt-1 text-center text-[11px] text-muted">源图</figcaption>
+        </figure>
+        <figure class="m-0">
+          <img src="https://placehold.co/240x208/ffffff/4f46e5?text=Translated" class="h-[104px] w-full rounded border border-line bg-white object-contain">
+          <figcaption class="mt-1 text-center text-[11px] text-muted">译文图</figcaption>
+        </figure>
+      </div>
+      <form method="post" action="/products/2/images/1/regenerate">
+        <label class="mb-2 block text-[13px] font-semibold">自定义重生成指令</label>
+        <input type="text" name="prompt_override" placeholder="留空=自动翻译；如：只去左上角logo" class="mb-2 w-full rounded-lg border border-line px-3 py-2 text-[13px]">
+        <button type="submit" class="min-h-[36px] w-full rounded-lg border border-line bg-white px-3 py-1.5 text-[13px] font-semibold transition-colors hover:border-primary hover:text-primary">重生成此图</button>
+      </form>
+    </div>
+  </aside>
+
+</div>
+
+<!-- Sticky Action Bar -->
+<div class="sticky bottom-0 z-20 mt-5 flex flex-wrap items-center gap-2.5 rounded-xl border border-line bg-white px-4 py-3">
+  <form method="post" action="/products/2/approve" class="inline"><button type="submit" class="min-h-10 rounded-lg border border-cta bg-cta px-[18px] py-2 text-[14px] font-semibold text-white hover:bg-cta-dark">提交上架</button></form>
+  <form method="post" action="/products/2/regenerate" class="inline"><button type="submit" class="min-h-10 rounded-lg border border-line bg-white px-[18px] py-2 text-[14px] font-semibold text-ink hover:border-primary hover:text-primary">重新生成</button></form>
+  <form method="post" action="/products/2/delete" class="inline"><button type="submit" class="min-h-10 rounded-lg border border-line bg-white px-[18px] py-2 text-[14px] font-semibold text-danger hover:border-danger">删除商品</button></form>
+  <span class="text-[13px] text-muted">提交前请确认译文、价格、类目与必填属性无误</span>
+</div>
+
+</main>
+</div>
+
+<script>
+// Populate filmstrip
+const filmstrip = document.getElementById('filmstrip');
+let html = '';
+
+// Video
+html += `<div class="relative cursor-pointer rounded-lg border border-line p-1 transition-colors hover:border-primary bg-white">
+  <div class="absolute right-1.5 top-1.5 rounded bg-black/60 px-1 text-[10px] text-white">0:15</div>
+  <img src="https://placehold.co/100x100/0f172a/e2e8f0?text=Video" class="aspect-square w-full rounded object-cover">
+  <div class="mt-1 text-center text-[11px] font-semibold text-muted">商品视频</div>
+</div>`;
+
+// Images
+for(let i=1; i<=20; i++) {
+  const isSelected = i === 1;
+  const kind = i===1 ? '主图' : i>15 ? '色卡' : '详情图';
+  const borderClass = isSelected ? 'border-2 border-primary bg-primary-soft' : 'border border-line bg-white hover:border-primary';
+  
+  html += `<div class="relative cursor-pointer rounded-lg p-1 transition-all ${borderClass}">
+    <div class="absolute left-1.5 top-1.5 rounded bg-white/90 px-1 text-[10px] font-bold text-ink shadow-sm">${kind}</div>
+    <img src="https://placehold.co/100x100/ffffff/6366f1?text=${i}" class="aspect-square w-full rounded object-cover border border-line">
+    <div class="mt-1 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-ink">
+      <input type="checkbox" checked class="h-3 w-3 accent-primary"> #${i}
+    </div>
+  </div>`;
+}
+filmstrip.innerHTML = html;
+</script>
+
+</body></html>
