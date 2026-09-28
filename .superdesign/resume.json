@@ -57,9 +57,27 @@
           "visualDirection": "faithful reproduction of the current light indigo/emerald UI; ground truth for branching",
           "parentDraftId": null,
           "currentVersion": 1
+        },
+        "dcef0504-fff4-4a71-9804-7ba7512d9de6": {
+          "title": "A · 密集控制台版",
+          "visualDirection": "dense power console: left sidebar task groups, 6-col thumbnail grid, compact swatch chips, compressed 12/32px rhythm",
+          "parentDraftId": "ebf77a2a-b6ad-46fc-99b1-922d7d880a92",
+          "currentVersion": 1
+        },
+        "0fe043e6-3523-4bc1-aa78-2343d8e50bd5": {
+          "title": "B · 分步工作台 Stepped Workbench",
+          "visualDirection": "5-step horizontal stepper, one step expanded at a time with collapsed outcome summaries, persistent right rail with preflight checklist + margin summary + 提交上架",
+          "parentDraftId": "ebf77a2a-b6ad-46fc-99b1-922d7d880a92",
+          "currentVersion": 1
+        },
+        "e8de58b6-dc9f-469d-b2d8-88b7857e92a3": {
+          "title": "C · 画廊优先 Gallery-first Inspector",
+          "visualDirection": "left filmstrip rail, large center stage, right inspector with 图片/视频/变体/详情页 switcher, collapsible 商品信息 panel, checklist as compact status strip",
+          "parentDraftId": "ebf77a2a-b6ad-46fc-99b1-922d7d880a92",
+          "currentVersion": 1
         }
       },
-      "updatedAt": "2026-09-28T06:13:00+00:00"
+      "updatedAt": "2026-09-28T07:44:54+00:00"
     }
   }
 }
