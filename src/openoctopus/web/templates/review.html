@@ -1,7 +1,30 @@
 {% extends "base.html" %}
 {% block title %}人审 #{{ p['id'] }} - OpenOctopus{% endblock %}
-{% block nav %}<a class="btn btn-ghost" href="/">← 返回看板</a>{% endblock %}
+{% block nav %}<a class="btn btn-ghost" href="/">← 返回商品列表</a>{% endblock %}
 {% block content %}
+{% set ns = namespace(ok=0, warn=0, err=0) %}
+{% for c in checks %}{% if c.level == 'ok' %}{% set ns.ok = ns.ok + 1 %}{% elif c.level == 'warn' %}{% set ns.warn = ns.warn + 1 %}{% else %}{% set ns.err = ns.err + 1 %}{% endif %}{% endfor %}
+{% set blockers = checks|selectattr('level', 'equalto', 'error')|list + checks|selectattr('level', 'equalto', 'warn')|list %}
+{% set n_variants = variants|length %}
+{% set n_matched = variants|selectattr('matched')|list|length %}
+{% set n_blocks = rich_blocks|length %}
+{% set n_imgs = images|length %}
+{% set step_titles = {1:'文案与标题', 2:'价格与库存', 3:'视频与详情页', 4:'颜色变体', 5:'图片与发布前检查'} %}
+{% set step_sums = {
+  1:'标题 ' ~ (t.get('title', {}).get('ru', '')|length) ~ ' 字符 · 描述 ' ~ (t.get('description', {}).get('ru', '')|length) ~ ' 字符',
+  2:'价格 ' ~ (p.get('price_rub') or '未填') ~ ' ' ~ currency ~ ' · 利润率 ' ~ cur_margin ~ '% · 库存 ' ~ (p.get('stock') or 0),
+  3:(p.get('video_url') and '视频已生成 · ' or '未生成视频 · ') ~ '详情图 ' ~ n_blocks ~ ' 块',
+  4:(n_variants ~ ' 组变体 · ' ~ n_matched ~ ' 已匹配词典 · ' ~ (n_variants - n_matched) ~ ' 组未匹配') if n_variants else '无变体',
+  5:(n_imgs ~ ' 张 · ' ~ ((ns.err + ns.warn) ~ ' 项待处理' if (ns.err + ns.warn) else '全部通过')) if n_imgs else '暂无图片'
+} %}
+{% set step_states = {
+  1:'active',
+  2:'done' if p.get('price_rub') else 'future',
+  3:'done' if p.get('video_url') else 'future',
+  4:'done' if n_variants else 'future',
+  5:('done' if not (ns.err + ns.warn) else 'future') if n_imgs else 'future'
+} %}
+
 <div class="card" style="margin-bottom:20px">
   <div class="hero">
     {% if hero %}<img src="{{ hero }}" alt="主图缩略图" loading="lazy">{% endif %}
@@ -16,7 +39,6 @@
   </div>
 </div>
 
-<form method="post" action="/products/{{ p['id'] }}/description/improve" id="desc-improve-form"></form>
 {% if content_jobs %}
 {% set job_labels = {"regenerate_video": "视频生成", "regenerate_rich": "详情页生成",
                      "regenerate_titles": "标题候选生成", "fetch_keywords": "搜索词抓取",
@@ -25,294 +47,457 @@
   有任务执行中：{% for t in content_job_types %}{{ job_labels.get(t, t) }}{% if not loop.last %}、{% endif %}{% endfor %}，完成后自动刷新（不影响你继续查看）
 </div>
 {% endif %}
-<div class="grid2">
-  <section class="card" aria-label="俄语草稿编辑">
-    <h2 style="margin-top:0">俄语草稿</h2>
-    <div id="draftbar" class="draftbar" style="display:none">
-      <span>发现未保存的草稿</span>
-      <button type="button" class="btn btn-ghost restore">恢复</button>
-      <button type="button" class="btn btn-ghost discard">丢弃</button>
-    </div>
 
-    <label>标题候选</label>
-    {% if title_candidates %}
-    <div class="cand-list" role="radiogroup" aria-label="标题候选">
-      {% for c in title_candidates %}
-      <label class="cand">
-        <input type="radio" name="title_pick" value="{{ c['id'] }}" form="edit-form"
-               data-text="{{ c['ru'] }}"
-               onchange="document.getElementById('f-title').value=this.dataset.text;document.getElementById('f-title').dispatchEvent(new Event('input'))">
-        <span class="cand-body">
-          <span class="cand-style">{{ style_label(c['style']) }}</span>
-          <span class="cand-text">{{ c['ru'] }}</span>
-        </span>
-      </label>
-      {% endfor %}
-    </div>
-    {% else %}
-    <p class="muted" style="margin:4px 0 8px">暂无候选，点「重新生成候选」生成（约 10 秒）</p>
-    {% endif %}
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px">
-      <form method="post" action="/products/{{ p['id'] }}/titles/regenerate">
-        <button class="btn btn-ghost" type="submit" {% if content_jobs %}disabled{% endif %}
-                style="min-height:32px;padding:2px 12px">重新生成候选</button>
-      </form>
-      <form method="post" action="/products/{{ p['id'] }}/keywords/fetch">
-        <button class="btn btn-ghost" type="submit" {% if content_jobs %}disabled{% endif %}
-                style="min-height:32px;padding:2px 12px">抓取 Ozon 搜索词</button>
-      </form>
-    </div>
-    {% if keywords %}
-    <p class="muted" style="margin:0 0 10px">已抓取搜索词：{{ keywords|join(' · ') }}</p>
-    {% endif %}
+{# 主表单：空壳 + 全页字段用 form="edit-form" 关联。
+   刻意不包裹内容——步骤里各自有独立 POST 表单，嵌套 form 是非法 HTML。 #}
+<form method="post" action="/products/{{ p['id'] }}/edit" id="edit-form" hidden></form>
+<form method="post" action="/products/{{ p['id'] }}/description/improve" id="desc-improve-form" hidden></form>
 
-    <form method="post" action="/products/{{ p['id'] }}/edit" id="edit-form">
-      <label for="f-title">标题 (RU)</label>
-      <input id="f-title" name="title_ru" type="text" value="{{ t.get('title', {}).get('ru', '') }}">
-      <span class="muted" id="title-count" aria-live="polite"></span>
-      {% if t.get('title', {}).get('zh') %}
-      <p class="muted" style="margin:-6px 0 12px">原文：{{ t['title']['zh'] }}</p>
-      {% endif %}
-      {% if title_warnings %}
-      <div class="warnbox" role="alert">
-        {% for w in title_warnings %}<div class="warnline">! {{ w }}</div>{% endfor %}
-      </div>
-      {% endif %}
+<nav class="stepper" aria-label="人审步骤">
+  {% for n in [1, 2, 3, 4, 5] %}
+  <a class="stepper-item" data-state="{{ step_states[n] }}" href="#step-{{ n }}">
+    <span class="stepper-num">{{ n }}</span>{{ step_titles[n] }}
+  </a>
+  {% if n < 5 %}<span class="stepper-line" aria-hidden="true"></span>{% endif %}
+  {% endfor %}
+</nav>
 
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-        <label for="f-desc" style="margin:0">描述 (RU)</label>
-        <button class="btn btn-ghost" type="submit" form="desc-improve-form" {% if content_jobs %}disabled{% endif %}
-                style="min-height:28px;padding:0 10px;font-size:12px">AI 优化描述</button>
-      </div>
-      <textarea id="f-desc" name="description_ru" rows="8">{{ t.get('description', {}).get('ru', '') }}</textarea>
-      {% if t.get('description', {}).get('zh') %}
-      <details style="margin:-8px 0 12px">
-        <summary>查看中文原文</summary>
-        <div class="srcbox" style="margin-top:6px">{{ t['description']['zh'] }}</div>
-      </details>
-      {% endif %}
+<div class="workbench">
+  <div class="workbench-main">
 
-      <label for="f-price">价格 ({{ currency }})</label>
-      <input id="f-price" name="price_rub" type="text" inputmode="decimal"
-             value="{{ p.get('price_rub') or '' }}" placeholder="留空则用汇率自动换算价">
-      <div class="pricebox">
-        <div>成本 <strong>{{ advice.cost_cny }}</strong> CNY（含物流 {{ (advice.total_cost_cny - advice.cost_cny)|round(1) }}）
-          · 汇率 <strong>{{ '%.2f'|format(rate) }}</strong> · 佣金 {{ advice.commission_pct }}%</div>
-        <div>保本价 <strong>{{ advice.break_even_cny }}</strong> · 建议价 <strong>{{ advice.suggested_cny }}</strong>
-          （目标利润率 {{ advice.target_margin_pct }}%）
-          <button type="button" class="btn btn-ghost"
-                  onclick="document.getElementById('f-price').value={{ advice.suggested_cny }}">填入建议价</button></div>
-        {% if p.get('price_rub') %}
-        <div>当前利润率 <strong class="{% if cur_margin < advice.target_margin_pct %}varwarn{% else %}varok{% endif %}">{{ cur_margin }}%</strong>
-          {% if p.get('last_price_sent') %}· 上次发布价 {{ p['last_price_sent'] }}{% endif %}</div>
+    {# ---------- 步骤 1：文案与标题 ---------- #}
+    <details class="step" id="step-1" open>
+      <summary>
+        <span class="step-title"><span class="step-num">1</span>文案与标题</span>
+        <span class="row"><span class="step-sum">{{ step_sums[1] }}</span><span class="step-caret" aria-hidden="true"></span></span>
+      </summary>
+      <div class="step-body">
+        <div id="draftbar" class="draftbar" style="display:none">
+          <span>发现未保存的草稿</span>
+          <button type="button" class="btn btn-ghost btn-sm restore">恢复</button>
+          <button type="button" class="btn btn-ghost btn-sm discard">丢弃</button>
+        </div>
+
+        <label>标题候选</label>
+        {% if title_candidates %}
+        <div class="cand-list" role="radiogroup" aria-label="标题候选">
+          {% for c in title_candidates %}
+          <label class="cand">
+            <input type="radio" name="title_pick" value="{{ c['id'] }}" form="edit-form"
+                   data-text="{{ c['ru'] }}"
+                   onchange="document.getElementById('f-title').value=this.dataset.text;document.getElementById('f-title').dispatchEvent(new Event('input'))">
+            <span class="cand-body">
+              <span class="cand-style">{{ style_label(c['style']) }}</span>
+              <span class="cand-text">{{ c['ru'] }}</span>
+            </span>
+          </label>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="muted" style="margin:4px 0 8px">暂无候选，点「重新生成候选」生成（约 10 秒）</p>
         {% endif %}
-      </div>
+        <div class="row" style="margin:0 0 10px">
+          <form method="post" action="/products/{{ p['id'] }}/titles/regenerate">
+            <button class="btn btn-ghost btn-sm" type="submit" {% if content_jobs %}disabled{% endif %}>重新生成候选</button>
+          </form>
+          <form method="post" action="/products/{{ p['id'] }}/keywords/fetch">
+            <button class="btn btn-ghost btn-sm" type="submit" {% if content_jobs %}disabled{% endif %}>抓取 Ozon 搜索词</button>
+          </form>
+        </div>
+        {% if keywords %}
+        <p class="muted" style="margin:0 0 10px">已抓取搜索词：{{ keywords|join(' · ') }}</p>
+        {% endif %}
 
-      <label for="f-stock">库存 (每 SKU 同量，0=不改)</label>
-      <input id="f-stock" name="stock" type="number" min="0" step="1"
-             value="{{ p.get('stock') or 0 }}" style="margin:4px 0 14px">
+        <label for="f-title">标题 (RU)</label>
+        <input id="f-title" name="title_ru" type="text" form="edit-form" value="{{ t.get('title', {}).get('ru', '') }}">
+        <span class="muted" id="title-count" aria-live="polite"></span>
+        {% if t.get('title', {}).get('zh') %}
+        <p class="muted" style="margin:-6px 0 12px">原文：{{ t['title']['zh'] }}</p>
+        {% endif %}
+        {% if title_warnings %}
+        <div class="warnbox" role="alert">
+          {% for w in title_warnings %}<div class="warnline">! {{ w }}</div>{% endfor %}
+        </div>
+        {% endif %}
 
-      <label>尺寸重量（长mm × 宽mm × 高mm，重量g；填全才传 Ozon，包装另计）</label>
-      <div style="display:flex;gap:8px">
-        <input name="length_mm" type="text" inputmode="decimal" placeholder="长"
-               value="{{ p.get('length_mm') or '' }}" style="margin:4px 0 14px">
-        <input name="width_mm" type="text" inputmode="decimal" placeholder="宽"
-               value="{{ p.get('width_mm') or '' }}" style="margin:4px 0 14px">
-        <input name="height_mm" type="text" inputmode="decimal" placeholder="高"
-               value="{{ p.get('height_mm') or '' }}" style="margin:4px 0 14px">
-        <input name="weight_g" type="text" inputmode="decimal" placeholder="重(g)"
-               value="{{ p.get('weight_g') or '' }}" style="margin:4px 0 14px">
-      </div>
+        <div class="toolbar" style="margin-bottom:0">
+          <label for="f-desc" style="margin:0">描述 (RU)</label>
+          <button class="btn btn-ghost btn-sm" type="submit" form="desc-improve-form" {% if content_jobs %}disabled{% endif %}>AI 优化描述</button>
+        </div>
+        <textarea id="f-desc" name="description_ru" rows="8" form="edit-form">{{ t.get('description', {}).get('ru', '') }}</textarea>
+        {% if t.get('description', {}).get('zh') %}
+        <details style="margin:-8px 0 12px">
+          <summary>查看中文原文</summary>
+          <div class="srcbox" style="margin-top:6px">{{ t['description']['zh'] }}</div>
+        </details>
+        {% endif %}
 
-      <label for="f-cat">Ozon 叶子类型（类目:类型）</label>
-      <input id="f-cat" name="ozon_category_id" type="text" list="cats"
-             value="{% if mapping %}{{ mapping.ozon_category_id }}{% if mapping.type_id %}:{{ mapping.type_id }}{% endif %}{% endif %}" placeholder="从下方候选选择叶子类型">
-      <datalist id="cats">
-        {% for c in cats %}<option value="{{ c['id'] }}">{{ c['title'] }}</option>{% endfor %}
-      </datalist>
-
-      <label for="f-attrs">类目属性 JSON</label>
-      <textarea id="f-attrs" name="attributes_json" rows="5" spellcheck="false">{{ mapping.attributes_json if mapping else '{}' }}</textarea>
-
-      <button class="btn btn-primary" type="submit">保存草稿</button>
-    </form>
-  </section>
-
-  <div>
-    <section class="card" aria-label="视频与详情页" style="margin-bottom:20px">
-      <h2 style="margin-top:0">视频与详情页（Ozon 富内容）</h2>
-      <h3 style="margin-top:8px">商品视频</h3>
-      {% if p.get('video_url') %}
-      <video controls preload="metadata" src="{{ p['video_url'] }}" aria-label="商品视频"></video>
-      <p class="muted" style="margin:6px 0 0">幻灯片视频（8-30 秒），上架时随卡片作为 Ozon 视频/视频封面</p>
-      {% else %}
-      <p class="muted">未生成。上架前生成，可提升内容评级（视频项 +40 分）。</p>
-      {% endif %}
-      <form method="post" action="/products/{{ p['id'] }}/content/video/regenerate" style="margin-top:8px">
-        <button class="btn btn-ghost" type="submit" {% if content_jobs %}disabled{% endif %}>{% if p.get('video_url') %}重新生成视频{% else %}生成视频{% endif %}</button>
-      </form>
-
-      <h3>详情页（图文介绍）</h3>
-      <p class="muted">上架后展示在商品描述区，可直接预览编辑，「保存草稿」后生效。</p>
-      {% if rich_blocks %}
-      <input type="hidden" name="rc_count" value="{{ rich_blocks|length }}" form="edit-form">
-      {% for b in rich_blocks %}
-      <div class="rc-block">
-        <img src="{{ b.img }}" alt="详情图 {{ loop.index }}" loading="lazy">
-        <div class="rc-fields">
-          <label for="rc-title-{{ loop.index }}">标题</label>
-          <input id="rc-title-{{ loop.index }}" name="rc_title_{{ loop.index0 }}" type="text"
-                 value="{{ b.title }}" form="edit-form" maxlength="80">
-          <label for="rc-text-{{ loop.index }}">文字</label>
-          <textarea id="rc-text-{{ loop.index }}" name="rc_text_{{ loop.index0 }}" rows="3"
-                    form="edit-form" spellcheck="false" maxlength="400">{{ b.text }}</textarea>
-          <input type="hidden" name="rc_img_{{ loop.index0 }}" value="{{ b.img }}" form="edit-form">
+        <div class="step-foot">
+          <span class="muted">第 1 / 5 步</span>
+          <div class="row">
+            <a class="btn btn-ghost" href="#step-2">下一步：价格与库存</a>
+            <button class="btn btn-primary" type="submit" form="edit-form">保存草稿</button>
+          </div>
         </div>
       </div>
-      {% endfor %}
-      {% else %}
-      <p class="muted">暂无详情页内容，点下方「重新生成详情页」自动生成。</p>
-      {% endif %}
-      <form method="post" action="/products/{{ p['id'] }}/content/rich/regenerate" style="margin-top:6px">
-        <button class="btn btn-ghost" type="submit" {% if content_jobs %}disabled{% endif %}>重新生成详情页</button>
-      </form>
-      <details>
-        <summary>高级：原始 JSON（一般不用改）</summary>
-        <label style="font-weight:400;font-size:13px">
-          <input type="checkbox" name="rc_raw_mode" value="1" form="edit-form" style="width:auto">
-          使用下面的 JSON 覆盖上方可视化编辑
-        </label>
-        <textarea name="rich_content" form="edit-form" rows="6" spellcheck="false"
-                  aria-label="Rich-контент JSON">{{ p.get('rich_content') or '' }}</textarea>
-      </details>
-    </section>
+    </details>
 
-    {% if variants %}
-    <section class="card" aria-label="颜色变体" style="margin-bottom:20px">
-      <h2 style="margin-top:0;margin-bottom:4px">颜色变体（{{ variants|length }} 组）</h2>
-      <p class="muted" style="margin:0 0 10px">上架时自动拆分为子 SKU 并合并到同一商品卡；✓ 已匹配 Ozon 颜色词典，未匹配的以自填文本提交。</p>
-      <div class="vargrid">
-        {% for v in variants %}
-        <div class="varcard">
-          {% if v.swatch %}
-            {% if r2_base and v.swatch.startswith(r2_base) %}
-            <img src="{{ v.swatch }}" alt="{{ v.zh }} 色卡" loading="lazy">
-            {% else %}
-            <img src="/media/proxy?u={{ v.swatch|urlencode }}" alt="{{ v.zh }} 色卡" loading="lazy">
-            {% endif %}
-          {% else %}
-          <span class="varnoimg" aria-hidden="true">{{ loop.index }}</span>
+    {# ---------- 步骤 2：价格与库存 ---------- #}
+    <details class="step" id="step-2">
+      <summary>
+        <span class="step-title"><span class="step-num">2</span>价格与库存</span>
+        <span class="row"><span class="step-sum">{{ step_sums[2] }}</span><span class="step-caret" aria-hidden="true"></span></span>
+      </summary>
+      <div class="step-body">
+        <label for="f-price">价格 ({{ currency }})</label>
+        <input id="f-price" name="price_rub" type="text" inputmode="decimal" form="edit-form"
+               value="{{ p.get('price_rub') or '' }}" placeholder="留空则用汇率自动换算价">
+        <div class="pricebox">
+          <div>成本 <strong>{{ advice.cost_cny }}</strong> CNY（含物流 {{ (advice.total_cost_cny - advice.cost_cny)|round(1) }}）
+            · 汇率 <strong>{{ '%.2f'|format(rate) }}</strong> · 佣金 {{ advice.commission_pct }}%</div>
+          <div>保本价 <strong>{{ advice.break_even_cny }}</strong> · 建议价 <strong>{{ advice.suggested_cny }}</strong>
+            （目标利润率 {{ advice.target_margin_pct }}%）
+            <button type="button" class="btn btn-ghost"
+                    onclick="document.getElementById('f-price').value={{ advice.suggested_cny }}">填入建议价</button></div>
+          {% if p.get('price_rub') %}
+          <div>当前利润率 <strong class="{% if cur_margin < advice.target_margin_pct %}varwarn{% else %}varok{% endif %}">{{ cur_margin }}%</strong>
+            {% if p.get('last_price_sent') %}· 上次发布价 {{ p['last_price_sent'] }}{% endif %}</div>
           {% endif %}
-          <div class="varinfo">
-            <div class="varname">{{ v.ru or v.zh }}</div>
-            <div class="varzh">{{ v.zh }}</div>
-            <div class="varmeta">{{ v.price_rub }} {{ currency }}
-              · {% if v.matched %}<span class="varok">✓ 词典</span>{% else %}<span class="varwarn">文本</span>{% endif %}
-              {% if v.combos > 1 %} · {{ v.combos }} 规格{% endif %}</div>
+        </div>
+
+        <label for="f-stock">库存 (每 SKU 同量，0=不改)</label>
+        <input id="f-stock" name="stock" type="number" min="0" step="1" form="edit-form"
+               value="{{ p.get('stock') or 0 }}" style="margin:4px 0 14px">
+
+        <label>尺寸重量（长mm × 宽mm × 高mm，重量g；填全才传 Ozon，包装另计）</label>
+        <div class="dims">
+          <input name="length_mm" type="text" inputmode="decimal" aria-label="长 mm" placeholder="长" form="edit-form" value="{{ p.get('length_mm') or '' }}">
+          <input name="width_mm" type="text" inputmode="decimal" aria-label="宽 mm" placeholder="宽" form="edit-form" value="{{ p.get('width_mm') or '' }}">
+          <input name="height_mm" type="text" inputmode="decimal" aria-label="高 mm" placeholder="高" form="edit-form" value="{{ p.get('height_mm') or '' }}">
+          <input name="weight_g" type="text" inputmode="decimal" aria-label="重量 g" placeholder="重(g)" form="edit-form" value="{{ p.get('weight_g') or '' }}">
+        </div>
+
+        <label for="f-cat">Ozon 叶子类型（类目:类型）</label>
+        <input id="f-cat" name="ozon_category_id" type="text" list="cats" form="edit-form"
+               value="{% if mapping %}{{ mapping.ozon_category_id }}{% if mapping.type_id %}:{{ mapping.type_id }}{% endif %}{% endif %}" placeholder="从下方候选选择叶子类型">
+        <datalist id="cats">
+          {% for c in cats %}<option value="{{ c['id'] }}">{{ c['title'] }}</option>{% endfor %}
+        </datalist>
+
+        <label for="f-attrs">类目属性 JSON</label>
+        <textarea id="f-attrs" name="attributes_json" rows="5" spellcheck="false" form="edit-form">{{ mapping.attributes_json if mapping else '{}' }}</textarea>
+
+        <div class="step-foot">
+          <span class="muted">第 2 / 5 步</span>
+          <div class="row">
+            <a class="btn btn-ghost" href="#step-1">上一步</a>
+            <a class="btn btn-ghost" href="#step-3">下一步：视频与详情页</a>
+            <button class="btn btn-primary" type="submit" form="edit-form">保存草稿</button>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    {# ---------- 步骤 3：视频与详情页 ---------- #}
+    <details class="step" id="step-3">
+      <summary>
+        <span class="step-title"><span class="step-num">3</span>视频与详情页</span>
+        <span class="row"><span class="step-sum">{{ step_sums[3] }}</span><span class="step-caret" aria-hidden="true"></span></span>
+      </summary>
+      <div class="step-body">
+        <h3 style="margin-top:0">商品视频</h3>
+        {% if p.get('video_url') %}
+        <video controls preload="metadata" src="{{ p['video_url'] }}" aria-label="商品视频"></video>
+        <p class="muted" style="margin:6px 0 0">幻灯片视频（8-30 秒），上架时随卡片作为 Ozon 视频/视频封面</p>
+        {% else %}
+        <p class="muted">未生成。上架前生成，可提升内容评级（视频项 +40 分）。</p>
+        {% endif %}
+        <form method="post" action="/products/{{ p['id'] }}/content/video/regenerate" style="margin-top:8px">
+          <button class="btn btn-ghost" type="submit" {% if content_jobs %}disabled{% endif %}>{% if p.get('video_url') %}重新生成视频{% else %}生成视频{% endif %}</button>
+        </form>
+
+        <h3>详情页（图文介绍）</h3>
+        <p class="muted">上架后展示在商品描述区，可直接预览编辑，「保存草稿」后生效。</p>
+        {% if rich_blocks %}
+        <input type="hidden" name="rc_count" value="{{ n_blocks }}" form="edit-form">
+        {% for b in rich_blocks %}
+        <div class="rc-block">
+          <img src="{{ b.img }}" alt="详情图 {{ loop.index }}" loading="lazy">
+          <div class="rc-fields">
+            <label for="rc-title-{{ loop.index }}">标题</label>
+            <input id="rc-title-{{ loop.index }}" name="rc_title_{{ loop.index0 }}" type="text"
+                   value="{{ b.title }}" form="edit-form" maxlength="80">
+            <label for="rc-text-{{ loop.index }}">文字</label>
+            <textarea id="rc-text-{{ loop.index }}" name="rc_text_{{ loop.index0 }}" rows="3"
+                      form="edit-form" spellcheck="false" maxlength="400">{{ b.text }}</textarea>
+            <input type="hidden" name="rc_img_{{ loop.index0 }}" value="{{ b.img }}" form="edit-form">
           </div>
         </div>
         {% endfor %}
-      </div>
-    </section>
-    {% endif %}
-  </div>
-</div>
-
-<section class="card" aria-label="图片前后对比" style="margin-top:20px">
-  <div class="toolbar" style="margin-bottom:6px">
-    <div>
-      <h2 style="margin:0;margin-bottom:4px">图片前后对比（{{ images|length }} 张）</h2>
-      <p class="muted" style="margin:0">勾选「用于上架」的图片会随商品发布；可展开「自定义重生成」指定修改要求。</p>
-    </div>
-    <form method="post" action="/products/{{ p['id'] }}/infographic">
-      <button class="btn btn-ghost" type="submit" {% if content_jobs %}disabled{% endif %}>生成首图信息图</button>
-    </form>
-  </div>
-  {% set kind_labels = {"main": "主图", "detail": "详情图", "swatch": "色卡"} %}
-  <div class="imggrid">
-    {% for img in images %}
-    <div class="imgcard">
-      <div class="imginfo">
-        <span class="pill pill-new">{{ kind_labels.get(img['kind'], img['kind']) }}</span>
-        <span class="muted">#{{ img['id'] }} · {{ img['status'] }}</span>
-      </div>
-      <div class="pair">
-        <figure>
-          {% if img['source_url'] %}
-          <img src="/media/proxy?u={{ img['source_url']|urlencode }}" alt="源图 #{{ img['id'] }}" loading="lazy">
-          {% else %}<p class="muted">无</p>{% endif %}
-          <figcaption>源图</figcaption>
-        </figure>
-        <figure>
-          {% set tu = img['translated_url'] %}
-          {% if img['status'] == 'pending' %}
-          <div class="imgloading"><span class="spinner"></span></div>
-          {% elif tu and r2_base and tu.startswith(r2_base) %}
-          <img src="{{ tu }}" alt="译文图 #{{ img['id'] }}" loading="lazy">
-          {% elif tu %}
-          <img src="/media/proxy?u={{ tu|urlencode }}" alt="译文图 #{{ img['id'] }}" loading="lazy">
-          {% elif img['status'] == 'failed' %}
-          <div class="imgloading err">生成失败</div>
-          {% else %}<p class="muted">未生成</p>{% endif %}
-          <figcaption>译文图{% if tu and img['source_url'] == tu %}（无文字，用原图）{% endif %}</figcaption>
-        </figure>
-      </div>
-      <label style="font-weight:400;font-size:13px;display:flex;gap:6px;align-items:center;margin:6px 0 0">
-        <input type="checkbox" name="sel_{{ img['id'] }}" value="1" form="edit-form"
-               {% if img['selected'] %}checked{% endif %} style="width:auto;margin:0">
-        用于上架
-      </label>
-      <details>
-        <summary>自定义重生成</summary>
-        <form method="post" action="/products/{{ p['id'] }}/images/{{ img['id'] }}/regenerate">
-          <div class="regen-row">
-            <input type="text" name="prompt_override" aria-label="重生成指令 #{{ img['id'] }}"
-                   placeholder="留空=自动翻译；如：只去左上角logo">
-            <button class="btn btn-ghost" type="submit">重生成</button>
-          </div>
+        {% else %}
+        <p class="muted">暂无详情页内容，点下方「重新生成详情页」自动生成。</p>
+        {% endif %}
+        <form method="post" action="/products/{{ p['id'] }}/content/rich/regenerate" style="margin-top:6px">
+          <button class="btn btn-ghost" type="submit" {% if content_jobs %}disabled{% endif %}>重新生成详情页</button>
         </form>
-      </details>
-    </div>
-    {% endfor %}
-  </div>
-  {% if not images %}<p class="muted">暂无图片</p>{% endif %}
-</section>
+        <details>
+          <summary>高级：原始 JSON（一般不用改）</summary>
+          <label class="checklabel" style="font-weight:400;font-size:13px">
+            <input type="checkbox" name="rc_raw_mode" value="1" form="edit-form">
+            使用下面的 JSON 覆盖上方可视化编辑
+          </label>
+          <textarea name="rich_content" form="edit-form" rows="6" spellcheck="false"
+                    aria-label="Rich-контент JSON">{{ p.get('rich_content') or '' }}</textarea>
+        </details>
 
-<section class="card" aria-label="发布前检查" style="margin-top:20px">
-  <h2 style="margin-top:0;margin-bottom:8px">发布前检查</h2>
-  <div class="checklist">
-    {% for c in checks %}
-    <div class="checkitem">
-      <span class="checkdot check-{{ c.level }}"
-            aria-hidden="true">{% if c.level == 'ok' %}✓{% elif c.level == 'warn' %}!{% else %}×{% endif %}</span>
-      <span>{{ c.text }}</span>
-    </div>
-    {% endfor %}
-  </div>
-</section>
+        <div class="step-foot">
+          <span class="muted">第 3 / 5 步</span>
+          <div class="row">
+            <a class="btn btn-ghost" href="#step-2">上一步</a>
+            <a class="btn btn-ghost" href="#step-4">下一步：颜色变体</a>
+            <button class="btn btn-primary" type="submit" form="edit-form">保存草稿</button>
+          </div>
+        </div>
+      </div>
+    </details>
 
-<div class="actionbar">
-  <form method="post" action="/products/{{ p['id'] }}/approve">
-    <button class="btn btn-cta" type="submit">提交上架</button>
-  </form>
-  <form method="post" action="/products/{{ p['id'] }}/regenerate">
-    <button class="btn btn-danger-ghost" type="submit">重新生成</button>
-  </form>
-  <form method="post" action="/products/{{ p['id'] }}/delete"
-        onsubmit="return confirm('确定删除该商品及其全部数据？此操作不可恢复。')">
-    <button class="btn btn-ghost" type="submit">删除商品</button>
-  </form>
-  <span class="muted">提交前请确认译文、价格、类目与必填属性无误</span>
+    {# ---------- 步骤 4：颜色变体 ---------- #}
+    <details class="step" id="step-4">
+      <summary>
+        <span class="step-title"><span class="step-num">4</span>颜色变体</span>
+        <span class="row"><span class="step-sum">{{ step_sums[4] }}</span><span class="step-caret" aria-hidden="true"></span></span>
+      </summary>
+      <div class="step-body">
+        {% if variants %}
+        <p class="muted" style="margin:0 0 10px">上架时自动拆分为子 SKU 并合并到同一商品卡；✓ 已匹配 Ozon 颜色词典，未匹配的以自填文本提交。</p>
+        <div class="vargrid">
+          {% for v in variants %}
+          <div class="varcard">
+            {% if v.swatch %}
+              {% if r2_base and v.swatch.startswith(r2_base) %}
+              <img src="{{ v.swatch }}" alt="{{ v.zh }} 色卡" loading="lazy">
+              {% else %}
+              <img src="/media/proxy?u={{ v.swatch|urlencode }}" alt="{{ v.zh }} 色卡" loading="lazy">
+              {% endif %}
+            {% else %}
+            <span class="varnoimg" aria-hidden="true">{{ loop.index }}</span>
+            {% endif %}
+            <div class="varinfo">
+              <div class="varname">{{ v.ru or v.zh }}</div>
+              <div class="varzh">{{ v.zh }}</div>
+              <div class="varmeta">{{ v.price_rub }} {{ currency }}
+                · {% if v.matched %}<span class="varok">✓ 词典</span>{% else %}<span class="varwarn">文本</span>{% endif %}
+                {% if v.combos > 1 %} · {{ v.combos }} 规格{% endif %}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="muted">该商品无颜色变体。若 1688 页面有多个颜色，请重新采集以获取变体信息。</p>
+        {% endif %}
+
+        <div class="step-foot">
+          <span class="muted">第 4 / 5 步</span>
+          <div class="row">
+            <a class="btn btn-ghost" href="#step-3">上一步</a>
+            <a class="btn btn-ghost" href="#step-5">下一步：图片与检查</a>
+            <button class="btn btn-primary" type="submit" form="edit-form">保存草稿</button>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    {# ---------- 步骤 5：图片与发布前检查 ---------- #}
+    <details class="step" id="step-5">
+      <summary>
+        <span class="step-title"><span class="step-num">5</span>图片与发布前检查</span>
+        <span class="row"><span class="step-sum">{{ step_sums[5] }}</span><span class="step-caret" aria-hidden="true"></span></span>
+      </summary>
+      <div class="step-body">
+        <div class="toolbar" style="margin-bottom:6px">
+          <div>
+            <h3 style="margin:0 0 4px">图片前后对比（{{ n_imgs }} 张）</h3>
+            <p class="muted" style="margin:0">勾选「用于上架」的图片会随商品发布；可展开「自定义重生成」指定修改要求。</p>
+          </div>
+          <form method="post" action="/products/{{ p['id'] }}/infographic">
+            <button class="btn btn-ghost" type="submit" {% if content_jobs %}disabled{% endif %}>生成首图信息图</button>
+          </form>
+        </div>
+        {% set kind_labels = {"main": "主图", "detail": "详情图", "swatch": "色卡"} %}
+        <div class="imggrid">
+          {% for img in images %}
+          <div class="imgcard">
+            <div class="imginfo">
+              <span class="pill pill-new">{{ kind_labels.get(img['kind'], img['kind']) }}</span>
+              <span class="muted">#{{ img['id'] }} · {{ img['status'] }}</span>
+            </div>
+            <div class="pair">
+              <figure>
+                {% if img['source_url'] %}
+                <img src="/media/proxy?u={{ img['source_url']|urlencode }}" alt="源图 #{{ img['id'] }}" loading="lazy">
+                {% else %}<p class="muted">无</p>{% endif %}
+                <figcaption>源图</figcaption>
+              </figure>
+              <figure>
+                {% set tu = img['translated_url'] %}
+                {% if img['status'] == 'pending' %}
+                <div class="imgloading"><span class="spinner"></span></div>
+                {% elif tu and r2_base and tu.startswith(r2_base) %}
+                <img src="{{ tu }}" alt="译文图 #{{ img['id'] }}" loading="lazy">
+                {% elif tu %}
+                <img src="/media/proxy?u={{ tu|urlencode }}" alt="译文图 #{{ img['id'] }}" loading="lazy">
+                {% elif img['status'] == 'failed' %}
+                <div class="imgloading err">生成失败</div>
+                {% else %}<p class="muted">未生成</p>{% endif %}
+                <figcaption>译文图{% if tu and img['source_url'] == tu %}（无文字，用原图）{% endif %}</figcaption>
+              </figure>
+            </div>
+            <label class="checklabel">
+              <input type="checkbox" name="sel_{{ img['id'] }}" value="1" form="edit-form"
+                     {% if img['selected'] %}checked{% endif %}>
+              用于上架
+            </label>
+            <details>
+              <summary>自定义重生成</summary>
+              <form method="post" action="/products/{{ p['id'] }}/images/{{ img['id'] }}/regenerate">
+                <div class="regen-row">
+                  <input type="text" name="prompt_override" aria-label="重生成指令 #{{ img['id'] }}"
+                         placeholder="留空=自动翻译；如：只去左上角logo">
+                  <button class="btn btn-ghost btn-sm" type="submit">重生成</button>
+                </div>
+              </form>
+            </details>
+          </div>
+          {% endfor %}
+        </div>
+        {% if not images %}<p class="muted">暂无图片</p>{% endif %}
+
+        <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
+          <h3 style="margin:0 0 12px">发布前检查</h3>
+          <div class="checklist checklist-2col">
+            {% for c in checks %}
+            <div class="checkitem">
+              <span class="checkdot check-{{ c.level }}"
+                    aria-hidden="true">{% if c.level == 'ok' %}✓{% elif c.level == 'warn' %}!{% else %}×{% endif %}</span>
+              <span>{{ c.text }}</span>
+            </div>
+            {% endfor %}
+            {% if not checks %}<p class="muted">暂无检查项</p>{% endif %}
+          </div>
+        </div>
+
+        <div class="step-foot">
+          <span class="muted">第 5 / 5 步</span>
+          <div class="row">
+            <a class="btn btn-ghost" href="#step-4">上一步</a>
+            <button class="btn btn-primary" type="submit" form="edit-form">保存草稿</button>
+          </div>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  {# ---------- 右侧常驻轨道 ---------- #}
+  <aside class="rail" aria-label="发布概览">
+    <div class="railcard">
+      <h3>发布前检查</h3>
+      {% if blockers %}
+      {% for c in blockers[:3] %}
+      <div class="checkitem" style="margin-bottom:8px">
+        <span class="checkdot check-{{ c.level }}"
+              aria-hidden="true">{% if c.level == 'warn' %}!{% else %}×{% endif %}</span>
+        <span>{{ c.text }}</span>
+      </div>
+      {% endfor %}
+      <p class="muted" style="margin:10px 0 0">
+        {{ ns.ok }} 项通过{% if ns.warn %} · <span style="color:var(--warning)">{{ ns.warn }} 项提醒</span>{% endif %}{% if ns.err %} · <span style="color:var(--danger)">{{ ns.err }} 项阻塞</span>{% endif %}
+      </p>
+      {% else %}
+      <div class="checkitem">
+        <span class="checkdot check-ok" aria-hidden="true">✓</span>
+        <span>全部检查通过</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="railcard">
+      <h3>价格概览</h3>
+      <div class="kv"><span>成本</span><strong>{{ advice.cost_cny }} CNY</strong></div>
+      <div class="kv"><span>含物流</span><strong>{{ (advice.total_cost_cny - advice.cost_cny)|round(1) }} CNY</strong></div>
+      <div class="kv"><span>汇率</span><strong>{{ '%.2f'|format(rate) }}</strong></div>
+      <div class="kv"><span>佣金</span><strong>{{ advice.commission_pct }}%</strong></div>
+      <div class="kv"><span>保本价</span><strong>{{ advice.break_even_cny }} CNY</strong></div>
+      <div class="kv"><span>建议价</span><strong>{{ advice.suggested_cny }} CNY</strong></div>
+      <div class="kv"><span>库存</span><strong>{{ p.get('stock') or 0 }}</strong></div>
+      <div class="kv kv-total {% if cur_margin < advice.target_margin_pct %}is-low{% endif %}">
+        <span>当前利润率</span><strong>{{ cur_margin }}%</strong>
+      </div>
+    </div>
+
+    <div class="railcard">
+      <form method="post" action="/products/{{ p['id'] }}/approve" style="margin-bottom:12px">
+        <button class="btn btn-cta btn-block btn-lg" type="submit">提交上架</button>
+      </form>
+      <div class="row" style="margin-bottom:12px">
+        <form method="post" action="/products/{{ p['id'] }}/regenerate" style="flex:1">
+          <button class="btn btn-ghost btn-block btn-sm" type="submit">重新生成</button>
+        </form>
+        <form method="post" action="/products/{{ p['id'] }}/delete" style="flex:1"
+              onsubmit="return confirm('确定删除该商品及其全部数据？此操作不可恢复。')">
+          <button class="btn btn-danger-ghost btn-block btn-sm" type="submit">删除商品</button>
+        </form>
+      </div>
+      <p class="muted" style="margin:0;text-align:center;font-size:12px">提交前请确认译文、价格、类目与必填属性无误</p>
+    </div>
+  </aside>
 </div>
 
-<style>
-.imgloading{display:flex;align-items:center;gap:8px;justify-content:center;min-height:90px;
-  color:var(--muted);font-size:13px}
-.imgloading.err{color:var(--danger)}
-.spinner{width:20px;height:20px;border:3px solid var(--primary-soft);border-top-color:var(--primary);
-  border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
-@keyframes spin{to{transform:rotate(360deg)}}
-</style>
+<script>
+// 步骤手风琴：同一时刻只展开一步；当前步骤写进 URL hash，
+// 这样生成中每 6 秒自动刷新后仍停在同一步（配合 sessionStorage 恢复滚动位置）。
+(function () {
+  var steps = Array.prototype.slice.call(document.querySelectorAll('details.step'));
+  if (!steps.length) return;
+  var items = Array.prototype.slice.call(document.querySelectorAll('.stepper-item'));
+
+  function sync() {
+    var open = steps.filter(function (s) { return s.open; });
+    items.forEach(function (it) {
+      var n = it.getAttribute('href').slice(1);
+      var isOpen = open.some(function (s) { return s.id === n; });
+      var future = it.getAttribute('data-state') === 'future';
+      it.setAttribute('data-state', isOpen ? 'active' : (future ? 'future' : 'done'));
+    });
+  }
+
+  function fromHash() {
+    var id = (location.hash || '').replace('#', '');
+    var target = steps.filter(function (s) { return s.id === id; })[0];
+    if (target) steps.forEach(function (s) { s.open = (s === target); });
+    sync();
+  }
+
+  steps.forEach(function (s) {
+    s.addEventListener('toggle', function () {
+      if (!s.open) return;
+      steps.forEach(function (o) { if (o !== s) o.open = false; });
+      // 用 replaceState 记住当前步骤：生成中每 6 秒自动刷新后仍停在同一步，
+      // 且不会往浏览器历史里塞一堆 #step-N
+      if (location.hash.slice(1) !== s.id) history.replaceState(null, '', '#' + s.id);
+      sync();
+    });
+  });
+  items.forEach(function (it) {
+    it.addEventListener('click', function () {
+      var id = it.getAttribute('href').slice(1);
+      var target = steps.filter(function (s) { return s.id === id; })[0];
+      if (target) { target.open = true; }
+    });
+  });
+  window.addEventListener('hashchange', fromHash);
+  fromHash();
+})();
+</script>
 
 <script>
 (function () {
@@ -334,6 +519,7 @@
   if (!form) return;
   const key = 'oo-draft-{{ p["id"] }}';
   const bar = document.getElementById('draftbar');
+  // form.elements 含所有 form="edit-form" 关联的跨步骤字段
   const collect = () => {
     const data = {};
     for (const el of form.elements) {
@@ -386,7 +572,7 @@
 
 {% if p['status'] == 'generating' or content_jobs %}
 <script>
-// 生成中：每 6 秒自动刷新，并保持滚动位置
+// 生成中：每 6 秒自动刷新，并保持滚动位置与当前展开的步骤
 setTimeout(() => {
   sessionStorage.setItem('oo-scroll', String(window.scrollY));
   location.reload();

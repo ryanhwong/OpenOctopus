@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from openoctopus import login as login_mod
@@ -30,6 +31,9 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
     conn.execute("UPDATE jobs SET status='queued', error=NULL WHERE status='running'")
     conn.commit()
     app = FastAPI()
+    # 设计系统样式表（2026-09 从 base.html 内联抽出）
+    app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")),
+              name="static")
     runner = JobRunner(conn, HANDLERS, ctx)
     app.state.login_session = None
     app.state.login_info = {"status": "idle", "logged_in": False, "checked_at": None}
