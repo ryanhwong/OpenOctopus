@@ -65,12 +65,12 @@
           "currentVersion": 1
         },
         "0fe043e6-3523-4bc1-aa78-2343d8e50bd5": {
-          "title": "B · 分步工作台 Stepped Workbench",
-          "visualDirection": "5-step horizontal stepper, one step expanded at a time with collapsed outcome summaries, persistent right rail with preflight checklist + margin summary + 提交上架",
+          "title": "B v2 · 双步骤展开工作台（用户选定）",
+          "visualDirection": "stepped workbench: 5-step stepper, step 1 (form-heavy) and step 5 (media-heavy) shown expanded, steps 2/3/4 collapsed to outcome summaries; sticky right rail = preflight checklist + price overview + 提交上架; nav has active state; real price data",
           "parentDraftId": "ebf77a2a-b6ad-46fc-99b1-922d7d880a92",
-          "currentVersion": 1,
+          "currentVersion": 2,
           "selected": true,
-          "selectionNote": "用户选定方向（2026-09-28）。v2 精修被额度阻断，未生成。"
+          "selectionNote": "用户选定 B。v2 精修已完成（2026-09-29，110 credits），三处缺口已修：step5 展开态（8 张图片卡 + 混合预检 ✓4/!3/×2）、导航 active 态、真实价格数字。本地 HTML: .superdesign/prompts/branch-B-stepped-workbench-v2.html"
         },
         "e8de58b6-dc9f-469d-b2d8-88b7857e92a3": {
           "title": "C · 画廊优先 Gallery-first Inspector",
@@ -79,11 +79,11 @@
           "currentVersion": 1
         }
       },
-      "updatedAt": "2026-09-28T07:49:38+00:00",
+      "updatedAt": "2026-09-29T15:03:29+00:00",
       "pendingSteps": [
-        "1) iterate-design-draft --draft-id 0fe043e6-3523-4bc1-aa78-2343d8e50bd5 --mode replace --model gpt-5.6-sol -p \"$(cat .superdesign/prompts/05-refine-b-selected.txt)\"  【被额度阻断：需补 step5 展开态 + nav active + 真实价格数字】",
-        "2) execute-flow-pages --draft-id <精修后B> --pages '[{\"title\":\"商品列表\",\"prompt\":\"...\"}]' 从 B 派生商品列表页",
-        "3) 落成真实代码：抽 static/app.css + 重写 review.html（B 结构）+ kanban.html"
+        "1) [已完成 2026-09-29] B v2 精修 → 0fe043e6 v2",
+        "2) execute-flow-pages --draft-id 0fe043e6-3523-4bc1-aa78-2343d8e50bd5 从 B 派生商品列表页（未做，消耗额度）",
+        "3) 落成真实代码：抽 static/app.css + 按 B 结构重写 review.html 与 kanban.html（不花额度）"
       ]
     }
   }
