@@ -238,7 +238,7 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
         from openoctopus.content.titles import check_title, style_label
         from openoctopus.listing.enrich import parse_rich_content
         from openoctopus.listing.preflight import preflight
-        from openoctopus.listing.pricing import margin_pct, price_advice
+        from openoctopus.listing.pricing import markup_pct, net_margin_pct, price_advice
         from openoctopus.rates import get_rate
 
         variants = []
@@ -293,7 +293,11 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                               shipping_cny=ctx.settings.shipping_cny,
                               target_margin_pct=ctx.settings.target_margin_pct, rate=rate)
         cur_price = float(p.get("price_rub") or 0)
-        cur_margin = margin_pct(cur_price, advice)
+        # 两个口径都算出来给界面：加价率(相对成本) 与 真实利润率(相对到手金额)。
+        # 历史字段 cur_margin 沿用加价率语义，勿当利润率解读。
+        cur_markup = markup_pct(cur_price, advice)
+        cur_net_margin = net_margin_pct(cur_price, advice)
+        cur_margin = cur_markup
         dims_count = sum(1 for k in ("length_mm", "width_mm", "height_mm", "weight_g")
                          if p.get(k))
         rus = [v["ru"] for v in variants if v["ru"]]
@@ -318,6 +322,8 @@ def create_app(ctx, run_worker: bool = True) -> FastAPI:
                                            "title_warnings": title_warnings,
                                            "keywords": keywords,
                                            "advice": advice, "cur_margin": cur_margin,
+                                           "cur_markup": cur_markup,
+                                           "cur_net_margin": cur_net_margin,
                                            "checks": checks, "rate": rate,
                                            "style_label": style_label,
                                            "r2_base": ctx.settings.r2_public_base_url or "",

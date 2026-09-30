@@ -256,6 +256,7 @@ select:focus-visible,summary:focus-visible,.pcard-link:focus-visible{
 .kv-total{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-weight:600;color:var(--text)}
 .kv-total strong{font-size:15px;color:var(--success)}
 .kv-total.is-low strong{color:var(--warning)}
+.kv-total.is-loss strong{color:var(--danger)}
 
 /* 折叠步骤：details 无 JS 也能用，JS 打开时套用展开态 */
 .step{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}

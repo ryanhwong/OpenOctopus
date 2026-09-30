@@ -12,7 +12,7 @@
 {% set step_titles = {1:'文案与标题', 2:'价格与库存', 3:'视频与详情页', 4:'颜色变体', 5:'图片与发布前检查'} %}
 {% set step_sums = {
   1:'标题 ' ~ (t.get('title', {}).get('ru', '')|length) ~ ' 字符 · 描述 ' ~ (t.get('description', {}).get('ru', '')|length) ~ ' 字符',
-  2:'价格 ' ~ (p.get('price_rub') or '未填') ~ ' ' ~ currency ~ ' · 利润率 ' ~ cur_margin ~ '% · 库存 ' ~ (p.get('stock') or 0),
+  2:'价格 ' ~ (p.get('price_rub') or '未填') ~ ' ' ~ currency ~ ' · 利润率 ' ~ cur_net_margin ~ '% · 库存 ' ~ (p.get('stock') or 0),
   3:(p.get('video_url') and '视频已生成 · ' or '未生成视频 · ') ~ '详情图 ' ~ n_blocks ~ ' 块',
   4:(n_variants ~ ' 组变体 · ' ~ n_matched ~ ' 已匹配词典 · ' ~ (n_variants - n_matched) ~ ' 组未匹配') if n_variants else '无变体',
   5:(n_imgs ~ ' 张 · ' ~ ((ns.err + ns.warn) ~ ' 项待处理' if (ns.err + ns.warn) else '全部通过')) if n_imgs else '暂无图片'
@@ -156,12 +156,14 @@
           <div>成本 <strong>{{ advice.cost_cny }}</strong> CNY（含物流 {{ (advice.total_cost_cny - advice.cost_cny)|round(1) }}）
             · 汇率 <strong>{{ '%.2f'|format(rate) }}</strong> · 佣金 {{ advice.commission_pct }}%</div>
           <div>保本价 <strong>{{ advice.break_even_cny }}</strong> · 建议价 <strong>{{ advice.suggested_cny }}</strong>
-            （目标利润率 {{ advice.target_margin_pct }}%）
+            （目标加价率 {{ advice.target_margin_pct }}%）
             <button type="button" class="btn btn-ghost"
                     onclick="document.getElementById('f-price').value={{ advice.suggested_cny }}">填入建议价</button></div>
           {% if p.get('price_rub') %}
-          <div>当前利润率 <strong class="{% if cur_margin < advice.target_margin_pct %}varwarn{% else %}varok{% endif %}">{{ cur_margin }}%</strong>
-            {% if p.get('last_price_sent') %}· 上次发布价 {{ p['last_price_sent'] }}{% endif %}</div>
+          <div>当前加价率 <strong class="{% if cur_markup < advice.target_margin_pct %}varwarn{% else %}varok{% endif %}">{{ cur_markup }}%</strong>
+            （相对成本）{% if p.get('last_price_sent') %}· 上次发布价 {{ p['last_price_sent'] }}{% endif %}</div>
+          <div>当前利润率 <strong class="{% if cur_net_margin <= 0 %}varwarn{% else %}varok{% endif %}">{{ cur_net_margin }}%</strong>
+            （相对到手金额，已扣 {{ advice.commission_pct }}% 佣金）</div>
           {% endif %}
         </div>
 
@@ -429,8 +431,11 @@
       <div class="kv"><span>保本价</span><strong>{{ advice.break_even_cny }} CNY</strong></div>
       <div class="kv"><span>建议价</span><strong>{{ advice.suggested_cny }} CNY</strong></div>
       <div class="kv"><span>库存</span><strong>{{ p.get('stock') or 0 }}</strong></div>
-      <div class="kv kv-total {% if cur_margin < advice.target_margin_pct %}is-low{% endif %}">
-        <span>当前利润率</span><strong>{{ cur_margin }}%</strong>
+      <div class="kv {% if cur_markup < advice.target_margin_pct %}is-low{% endif %}">
+        <span>加价率（相对成本）</span><strong>{{ cur_markup }}% / 目标 {{ advice.target_margin_pct }}%</strong>
+      </div>
+      <div class="kv kv-total {% if cur_net_margin <= 0 %}is-loss{% else %}{% if cur_markup < advice.target_margin_pct %}is-low{% endif %}{% endif %}">
+        <span>利润率（相对到手）</span><strong>{{ cur_net_margin }}%</strong>
       </div>
     </div>
 
